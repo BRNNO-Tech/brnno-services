@@ -6,7 +6,8 @@
     "scripts": {
         "start": "webpack serve --mode development",
         "build": "webpack --mode production",
-        "dev": "webpack serve --mode development --open"
+        "dev": "webpack serve --mode development --open",
+        "vercel-build": "webpack --mode production"
     },
     "dependencies": {
         "firebase": "^12.4.0",
