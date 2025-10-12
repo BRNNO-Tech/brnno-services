@@ -2069,18 +2069,60 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
 
 const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
     const [dashboardTab, setDashboardTab] = useState('overview');
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
 
-    // Lock body scroll when dashboard is open
+    // Check authentication when dashboard opens
     React.useEffect(() => {
         if (showDashboard) {
             document.body.style.overflow = 'hidden';
+            
+            // Check if user is authenticated and has provider role
+            if (auth.currentUser) {
+                getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
+                    if (userDoc.exists() && userDoc.data().accountType === 'provider') {
+                        setIsAuthorized(true);
+                    } else {
+                        alert('Provider access required. Please sign up as a provider first.');
+                        setShowDashboard(false);
+                    }
+                    setCheckingAuth(false);
+                }).catch(() => {
+                    alert('Authentication error. Please sign in again.');
+                    setShowDashboard(false);
+                    setCheckingAuth(false);
+                });
+            } else {
+                alert('Please sign in first to access provider dashboard.');
+                setShowDashboard(false);
+                setCheckingAuth(false);
+            }
+        } else {
+            setIsAuthorized(false);
+            setCheckingAuth(true);
         }
+        
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, [showDashboard]);
 
     if (!showDashboard) return null;
+    
+    if (checkingAuth) {
+        return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div className="bg-white rounded-xl p-8 text-center">
+                    <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Verifying access...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    if (!isAuthorized) {
+        return null;
+    }
 
     // Mock data
     const stats = {
@@ -3252,7 +3294,26 @@ const BRNNOMarketplace = () => {
                                 Join Waitlist
                             </button>
                             <button
-                                onClick={() => setShowProviderDashboard(true)}
+                                onClick={() => {
+                                    // Check if user is authenticated and has provider role
+                                    if (auth.currentUser) {
+                                        // User is logged in, check their role
+                                        getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
+                                            if (userDoc.exists() && userDoc.data().accountType === 'provider') {
+                                                setShowProviderDashboard(true);
+                                            } else {
+                                                alert('Provider access required. Please sign up as a provider first.');
+                                                setShowProviderModal(true);
+                                            }
+                                        }).catch(() => {
+                                            alert('Please sign in first to access provider dashboard.');
+                                            setShowLoginModal(true);
+                                        });
+                                    } else {
+                                        alert('Please sign in first to access provider dashboard.');
+                                        setShowLoginModal(true);
+                                    }
+                                }}
                                 className="text-gray-600 hover:text-cyan-500 transition-colors"
                             >
                                 Provider Dashboard
@@ -3317,7 +3378,30 @@ const BRNNOMarketplace = () => {
                                     Join Waitlist
                                 </button>
                                 <button
-                                    onClick={() => setShowProviderDashboard(true)}
+                                    onClick={() => {
+                                        // Check if user is authenticated and has provider role
+                                        if (auth.currentUser) {
+                                            // User is logged in, check their role
+                                            getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
+                                                if (userDoc.exists() && userDoc.data().accountType === 'provider') {
+                                                    setShowProviderDashboard(true);
+                                                    setShowMobileMenu(false);
+                                                } else {
+                                                    alert('Provider access required. Please sign up as a provider first.');
+                                                    setShowProviderModal(true);
+                                                    setShowMobileMenu(false);
+                                                }
+                                            }).catch(() => {
+                                                alert('Please sign in first to access provider dashboard.');
+                                                setShowLoginModal(true);
+                                                setShowMobileMenu(false);
+                                            });
+                                        } else {
+                                            alert('Please sign in first to access provider dashboard.');
+                                            setShowLoginModal(true);
+                                            setShowMobileMenu(false);
+                                        }
+                                    }}
                                     className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                                 >
                                     Provider Dashboard
