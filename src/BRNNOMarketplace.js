@@ -793,18 +793,49 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
 
 const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setProfileTab }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const [isAuthorized, setIsAuthorized] = useState(false);
+    const [checkingAuth, setCheckingAuth] = useState(true);
 
-    // Lock body scroll when panel is open
+    // Check authentication when panel opens
     React.useEffect(() => {
         if (showProfilePanel) {
             document.body.style.overflow = 'hidden';
+            
+            // Check if user is authenticated
+            if (auth.currentUser) {
+                setIsAuthorized(true);
+                setCheckingAuth(false);
+            } else {
+                alert('Please sign in first to access your profile.');
+                setShowProfilePanel(false);
+                setCheckingAuth(false);
+            }
+        } else {
+            setIsAuthorized(false);
+            setCheckingAuth(true);
         }
+        
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, [showProfilePanel]);
 
     if (!showProfilePanel) return null;
+    
+    if (checkingAuth) {
+        return (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+                <div className="bg-white rounded-xl p-8 text-center">
+                    <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <p className="text-gray-600">Verifying access...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    if (!isAuthorized) {
+        return null;
+    }
 
     return (
         <>
@@ -2076,7 +2107,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
     React.useEffect(() => {
         if (showDashboard) {
             document.body.style.overflow = 'hidden';
-            
+
             // Check if user is authenticated and has provider role
             if (auth.currentUser) {
                 getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
@@ -2101,14 +2132,14 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
             setIsAuthorized(false);
             setCheckingAuth(true);
         }
-        
+
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, [showDashboard]);
 
     if (!showDashboard) return null;
-    
+
     if (checkingAuth) {
         return (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -2119,7 +2150,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
             </div>
         );
     }
-    
+
     if (!isAuthorized) {
         return null;
     }
@@ -3319,7 +3350,15 @@ const BRNNOMarketplace = () => {
                                 Provider Dashboard
                             </button>
                             <button
-                                onClick={() => setShowProfilePanel(true)}
+                                onClick={() => {
+                                    // Check if user is authenticated
+                                    if (auth.currentUser) {
+                                        setShowProfilePanel(true);
+                                    } else {
+                                        alert('Please sign in first to access your profile.');
+                                        setShowLoginModal(true);
+                                    }
+                                }}
                                 className="text-gray-600 hover:text-cyan-500 transition-colors"
                             >
                                 My Profile
@@ -3408,8 +3447,15 @@ const BRNNOMarketplace = () => {
                                 </button>
                                 <button
                                     onClick={() => {
-                                        setShowProfilePanel(true);
-                                        setShowMobileMenu(false);
+                                        // Check if user is authenticated
+                                        if (auth.currentUser) {
+                                            setShowProfilePanel(true);
+                                            setShowMobileMenu(false);
+                                        } else {
+                                            alert('Please sign in first to access your profile.');
+                                            setShowLoginModal(true);
+                                            setShowMobileMenu(false);
+                                        }
                                     }}
                                     className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                                 >
