@@ -800,7 +800,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
     React.useEffect(() => {
         if (showProfilePanel) {
             document.body.style.overflow = 'hidden';
-            
+
             // Check if user is authenticated
             if (auth.currentUser) {
                 setIsAuthorized(true);
@@ -814,14 +814,14 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             setIsAuthorized(false);
             setCheckingAuth(true);
         }
-        
+
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, [showProfilePanel]);
 
     if (!showProfilePanel) return null;
-    
+
     if (checkingAuth) {
         return (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -832,7 +832,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             </div>
         );
     }
-    
+
     if (!isAuthorized) {
         return null;
     }
@@ -3609,7 +3609,7 @@ const BRNNOMarketplace = () => {
             <div className="bg-gradient-to-r from-gray-50 to-cyan-50 py-12 sm:py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6">
                     <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-8 sm:mb-12">
-                        Why Choose AutoDetail Connect
+                        Why Choose BRNNO
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
                         <div className="text-center">
