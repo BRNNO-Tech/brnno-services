@@ -19,6 +19,14 @@
       "dest": "/bundle.js.LICENSE.txt"
     },
     {
+      "src": "/BRNNO_logov3.jpg",
+      "dest": "/BRNNO_logov3.jpg"
+    },
+    {
+      "src": "/app.html",
+      "dest": "/app.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
