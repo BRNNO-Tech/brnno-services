@@ -44,6 +44,11 @@ module.exports = {
         port: 3001,
         hot: true,
         open: true,
+        historyApiFallback: {
+            rewrites: [
+                { from: /^\/app/, to: '/app.html' }
+            ]
+        }
     },
     resolve: {
         extensions: ['.js', '.jsx'],
