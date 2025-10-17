@@ -3,7 +3,7 @@ import { Star, MapPin, Shield, Clock, DollarSign, CheckCircle, Lock, Car, Camera
 import { addToWaitlist, addToWaitlistWithReferral } from './firebaseService';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, where, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from './firebase/config';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -3324,6 +3324,30 @@ const BRNNOMarketplace = () => {
 
     // Authentication state listener
     React.useEffect(() => {
+        // First, handle Google redirect result (for environments blocking popups)
+        (async () => {
+            try {
+                const redirectResult = await getRedirectResult(auth);
+                if (redirectResult && redirectResult.user) {
+                    const user = redirectResult.user;
+                    // Ensure user doc exists
+                    const userDoc = await getDoc(doc(db, 'users', user.uid));
+                    if (!userDoc.exists()) {
+                        await setDoc(doc(db, 'users', user.uid), {
+                            uid: user.uid,
+                            email: user.email,
+                            displayName: user.displayName || '',
+                            accountType: 'customer',
+                            createdAt: serverTimestamp(),
+                            role: 'user'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Google redirect handling error:', e);
+            }
+        })();
+
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
             setAuthLoading(false);
             if (firebaseUser) {

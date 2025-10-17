@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "dist",
   "builds": [
     {
       "src": "package.json",
@@ -25,6 +27,10 @@
     {
       "src": "/app.html",
       "dest": "/app.html"
+    },
+    {
+      "src": "/landing.html",
+      "dest": "/landing.html"
     },
     {
       "src": "/(.*)",
