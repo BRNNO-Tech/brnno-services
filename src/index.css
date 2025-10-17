@@ -9,3 +9,39 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
+/* Mobile-friendly improvements */
+.scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Touch-friendly interactions */
+.touch-manipulation {
+    touch-action: manipulation;
+}
+
+/* Prevent zoom on input focus on mobile */
+@media screen and (max-width: 768px) {
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+}
+
+/* Mobile profile panel improvements */
+@media screen and (max-width: 640px) {
+    .profile-panel {
+        width: 100vw !important;
+        max-width: 100vw !important;
+    }
+}

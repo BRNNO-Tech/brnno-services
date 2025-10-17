@@ -3,7 +3,7 @@ import { Star, MapPin, Shield, Clock, DollarSign, CheckCircle, Lock, Car, Camera
 import { addToWaitlist, addToWaitlistWithReferral } from './firebaseService';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, where, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from './firebase/config';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, signOut } from 'firebase/auth';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -377,6 +377,7 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [info, setInfo] = useState('');
 
     // Lock body scroll when modal is open
     React.useEffect(() => {
@@ -431,7 +432,45 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
             setShowLoginModal(false);
         } catch (error) {
             console.error('Google login error:', error);
-            setError(error.message);
+            // Fallback to redirect flow for environments that block/auto-close popups
+            const popupIssues = [
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request',
+                'auth/popup-blocked',
+                'auth/unauthorized-domain'
+            ];
+            if (error && (popupIssues.includes(error.code) || /popup|redirect|domain/i.test(error.message || ''))) {
+                try {
+                    await signInWithRedirect(auth, provider);
+                    return;
+                } catch (redirectError) {
+                    console.error('Google login redirect error:', redirectError);
+                    setError(redirectError.message || 'Google sign-in failed.');
+                }
+            } else {
+                setError(error.message);
+            }
+        }
+    };
+
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setError('');
+        setInfo('');
+        if (!email) {
+            setError('Please enter your email first.');
+            return;
+        }
+        try {
+            const actionCodeSettings = {
+                url: `${window.location.origin}/app.html`,
+                handleCodeInApp: false
+            };
+            await sendPasswordResetEmail(auth, email, actionCodeSettings);
+            setInfo('Password reset email sent. Check your inbox.');
+        } catch (err) {
+            console.error('Password reset error:', err);
+            setError(err.message || 'Failed to send reset email.');
         }
     };
 
@@ -500,13 +539,18 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
                             {error}
                         </div>
                     )}
+                    {info && (
+                        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                            {info}
+                        </div>
+                    )}
 
                     <div className="flex items-center justify-between text-sm">
                         <label className="flex items-center gap-2">
                             <input type="checkbox" className="rounded" />
                             <span className="text-gray-600">Remember me</span>
                         </label>
-                        <a href="#" className="text-cyan-500 hover:text-cyan-600 font-semibold">
+                        <a href="#" onClick={handleForgotPassword} className="text-cyan-500 hover:text-cyan-600 font-semibold">
                             Forgot password?
                         </a>
                     </div>
@@ -572,6 +616,13 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
 const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMode, setShowLoginModal }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [businessName, setBusinessName] = useState('');
+    const [phone, setPhone] = useState('');
 
     // Lock body scroll when modal is open
     React.useEffect(() => {
@@ -582,6 +633,60 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
             document.body.style.overflow = 'unset';
         };
     }, [showSignupModal]);
+
+    const handleSignup = async (e) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        // Validation
+        if (!email || !password || !firstName || !lastName) {
+            setError('Please fill in all required fields.');
+            setLoading(false);
+            return;
+        }
+
+        if (password !== confirmPassword) {
+            setError('Passwords do not match.');
+            setLoading(false);
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters.');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            console.log('Email signup:', user);
+
+            // Create user profile in Firestore
+            await setDoc(doc(db, 'users', user.uid), {
+                uid: user.uid,
+                email: user.email,
+                firstName: firstName,
+                lastName: lastName,
+                displayName: `${firstName} ${lastName}`,
+                phone: phone,
+                businessName: authMode === 'provider' ? businessName : null,
+                accountType: authMode,
+                createdAt: serverTimestamp(),
+                role: 'user' // Default role
+            });
+
+            console.log('User document created successfully');
+            setShowSignupModal(false);
+        } catch (error) {
+            console.error('Signup error:', error);
+            setError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleGoogleSignup = async () => {
         const provider = new GoogleAuthProvider();
@@ -605,7 +710,24 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
             setShowSignupModal(false);
         } catch (error) {
             console.error('Google signup error:', error);
-            setError(error.message);
+            // Fallback to redirect flow for environments that block/auto-close popups
+            const popupIssues = [
+                'auth/popup-closed-by-user',
+                'auth/cancelled-popup-request',
+                'auth/popup-blocked',
+                'auth/unauthorized-domain'
+            ];
+            if (error && (popupIssues.includes(error.code) || /popup|redirect|domain/i.test(error.message || ''))) {
+                try {
+                    await signInWithRedirect(auth, provider);
+                    return;
+                } catch (redirectError) {
+                    console.error('Google signup redirect error:', redirectError);
+                    setError(redirectError.message || 'Google sign-up failed.');
+                }
+            } else {
+                setError(error.message);
+            }
         }
     };
 
@@ -651,22 +773,28 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
                     </div>
                 )}
 
-                <form className="space-y-4">
+                <form onSubmit={handleSignup} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">First Name *</label>
                             <input
                                 type="text"
+                                value={firstName}
+                                onChange={(e) => setFirstName(e.target.value)}
                                 placeholder="John"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                required
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name *</label>
                             <input
                                 type="text"
+                                value={lastName}
+                                onChange={(e) => setLastName(e.target.value)}
                                 placeholder="Doe"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                required
                             />
                         </div>
                     </div>
@@ -676,6 +804,8 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
                             <input
                                 type="text"
+                                value={businessName}
+                                onChange={(e) => setBusinessName(e.target.value)}
                                 placeholder="Your Detailing Business"
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                             />
@@ -683,11 +813,14 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
                     )}
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Email *</label>
                         <input
                             type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             placeholder="your@email.com"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            required
                         />
                     </div>
 
@@ -695,27 +828,35 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
                         <input
                             type="tel"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
                             placeholder="(555) 123-4567"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Password *</label>
                         <input
                             type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             placeholder="••••••••"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            required
                         />
-                        <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
+                        <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
                     </div>
 
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm Password *</label>
                         <input
                             type="password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             placeholder="••••••••"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            required
                         />
                     </div>
 
@@ -735,9 +876,10 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
 
                     <button
                         type="submit"
-                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-lg transition-colors"
+                        disabled={loading}
+                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Create Account
+                        {loading ? 'Creating Account...' : 'Create Account'}
                     </button>
                 </form>
 
@@ -795,8 +937,21 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
     const [isEditing, setIsEditing] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(true);
+    const [userData, setUserData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
 
-    // Check authentication when panel opens
+    // Form state
+    const [formData, setFormData] = useState({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        businessName: ''
+    });
+
+    // Check authentication and load user data when panel opens
     React.useEffect(() => {
         if (showProfilePanel) {
             document.body.style.overflow = 'hidden';
@@ -805,6 +960,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             if (auth.currentUser) {
                 setIsAuthorized(true);
                 setCheckingAuth(false);
+                loadUserData();
             } else {
                 alert('Please sign in first to access your profile.');
                 setShowProfilePanel(false);
@@ -813,12 +969,101 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         } else {
             setIsAuthorized(false);
             setCheckingAuth(true);
+            setUserData(null);
         }
 
         return () => {
             document.body.style.overflow = 'unset';
         };
     }, [showProfilePanel]);
+
+    const loadUserData = async () => {
+        try {
+            setLoading(true);
+            const user = auth.currentUser;
+            if (user) {
+                // Get user data from Firestore
+                const userDoc = await getDoc(doc(db, 'users', user.uid));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    setUserData(data);
+                    setFormData({
+                        firstName: data.firstName || '',
+                        lastName: data.lastName || '',
+                        email: data.email || user.email || '',
+                        phone: data.phone || '',
+                        businessName: data.businessName || ''
+                    });
+                } else {
+                    // Create user document if it doesn't exist
+                    await setDoc(doc(db, 'users', user.uid), {
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName || '',
+                        accountType: 'customer',
+                        createdAt: serverTimestamp(),
+                        role: 'user'
+                    });
+                    setUserData({
+                        uid: user.uid,
+                        email: user.email,
+                        displayName: user.displayName || '',
+                        accountType: 'customer',
+                        role: 'user'
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error loading user data:', error);
+            setError('Failed to load user data.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        try {
+            setLoading(true);
+            setError('');
+            setSuccess('');
+
+            const user = auth.currentUser;
+            if (!user) {
+                setError('User not authenticated.');
+                return;
+            }
+
+            // Update user data in Firestore
+            await updateDoc(doc(db, 'users', user.uid), {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phone: formData.phone,
+                businessName: formData.businessName,
+                displayName: `${formData.firstName} ${formData.lastName}`,
+                updatedAt: serverTimestamp()
+            });
+
+            setSuccess('Profile updated successfully!');
+            setIsEditing(false);
+            loadUserData(); // Reload data
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            setError('Failed to save profile. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            setShowProfilePanel(false);
+            alert('Logged out successfully!');
+        } catch (error) {
+            console.error('Logout error:', error);
+            alert('Failed to logout. Please try again.');
+        }
+    };
 
     if (!showProfilePanel) return null;
 
@@ -846,41 +1091,43 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             />
 
             {/* Slide-out Panel */}
-            <div className="fixed right-0 top-0 h-full w-full sm:w-[90vw] md:w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="fixed right-0 top-0 h-full w-full sm:w-[95vw] md:w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-6">
+                <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h2 className="text-2xl font-bold">My Profile</h2>
+                        <h2 className="text-xl sm:text-2xl font-bold">My Profile</h2>
                         <button
                             onClick={() => setShowProfilePanel(false)}
-                            className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                            className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors touch-manipulation"
                         >
                             ✕
                         </button>
                     </div>
 
                     {/* Profile Picture */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 sm:gap-4">
                         <div className="relative">
-                            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-3xl font-bold">
-                                JD
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold">
+                                {userData ? `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}` : 'U'}
                             </div>
-                            <button className="absolute bottom-0 right-0 bg-white text-cyan-600 p-1 rounded-full hover:bg-cyan-50 transition-colors">
-                                <Camera size={16} />
+                            <button className="absolute bottom-0 right-0 bg-white text-cyan-600 p-1 rounded-full hover:bg-cyan-50 transition-colors touch-manipulation">
+                                <Camera size={14} />
                             </button>
                         </div>
-                        <div>
-                            <h3 className="text-xl font-bold">John Doe</h3>
-                            <p className="text-cyan-100">john.doe@email.com</p>
-                            <span className="inline-block bg-white/20 px-3 py-1 rounded-full text-xs font-semibold mt-2">
-                                Customer Account
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-lg sm:text-xl font-bold truncate">
+                                {userData ? `${formData.firstName} ${formData.lastName}` : 'User'}
+                            </h3>
+                            <p className="text-cyan-100 text-sm sm:text-base truncate">{formData.email}</p>
+                            <span className="inline-block bg-white/20 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold mt-1 sm:mt-2">
+                                {userData?.accountType === 'provider' ? 'Provider Account' : 'Customer Account'}
                             </span>
                         </div>
                     </div>
                 </div>
 
                 {/* Tabs */}
-                <div className="border-b border-gray-200 px-6 flex gap-1 overflow-x-auto">
+                <div className="border-b border-gray-200 px-4 sm:px-6 flex gap-1 overflow-x-auto scrollbar-hide">
                     {[
                         { id: 'personal', label: 'Personal', icon: '👤' },
                         { id: 'vehicles', label: 'Vehicles', icon: '🚗' },
@@ -891,49 +1138,64 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                         <button
                             key={tab.id}
                             onClick={() => setProfileTab(tab.id)}
-                            className={`px-4 py-3 font-semibold text-sm whitespace-nowrap transition-colors ${profileTab === tab.id
+                            className={`px-3 sm:px-4 py-3 font-semibold text-xs sm:text-sm whitespace-nowrap transition-colors touch-manipulation ${profileTab === tab.id
                                 ? 'text-cyan-600 border-b-2 border-cyan-600'
                                 : 'text-gray-600 hover:text-cyan-500'
                                 }`}
                         >
-                            <span className="mr-2">{tab.icon}</span>
-                            {tab.label}
+                            <span className="mr-1 sm:mr-2 text-sm sm:text-base">{tab.icon}</span>
+                            <span className="hidden sm:inline">{tab.label}</span>
+                            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* Content */}
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                     {/* Personal Info Tab */}
                     {profileTab === 'personal' && (
-                        <div className="space-y-6">
+                        <div className="space-y-4 sm:space-y-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold text-gray-800">Personal Information</h3>
+                                <h3 className="text-base sm:text-lg font-bold text-gray-800">Personal Information</h3>
                                 <button
                                     onClick={() => setIsEditing(!isEditing)}
-                                    className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm"
+                                    className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm touch-manipulation px-3 py-2 rounded-lg hover:bg-cyan-50"
                                 >
                                     {isEditing ? 'Cancel' : 'Edit'}
                                 </button>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            {error && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                                    {error}
+                                </div>
+                            )}
+
+                            {success && (
+                                <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
+                                    {success}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
                                     <input
                                         type="text"
-                                        defaultValue="John"
+                                        value={formData.firstName}
+                                        onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                                         disabled={!isEditing}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 text-base"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
                                     <input
                                         type="text"
-                                        defaultValue="Doe"
+                                        value={formData.lastName}
+                                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                                         disabled={!isEditing}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 text-base"
                                     />
                                 </div>
                             </div>
@@ -942,38 +1204,85 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
                                 <input
                                     type="email"
-                                    defaultValue="john.doe@email.com"
-                                    disabled={!isEditing}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
+                                    value={formData.email}
+                                    disabled={true}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 text-base"
                                 />
+                                <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
                                 <input
                                     type="tel"
-                                    defaultValue="(555) 123-4567"
+                                    value={formData.phone}
+                                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                     disabled={!isEditing}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 text-base"
                                 />
                             </div>
 
-                            {isEditing && (
-                                <button className="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 rounded-lg transition-colors">
-                                    Save Changes
-                                </button>
+                            {userData?.accountType === 'provider' && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name</label>
+                                    <input
+                                        type="text"
+                                        value={formData.businessName}
+                                        onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                                        disabled={!isEditing}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-600 text-base"
+                                    />
+                                </div>
                             )}
 
-                            <div className="pt-6 border-t border-gray-200">
-                                <h4 className="font-bold text-gray-800 mb-3">Account Settings</h4>
-                                <div className="space-y-2">
-                                    <button className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-gray-700">
+                            {isEditing && (
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <button
+                                        onClick={handleSave}
+                                        disabled={loading}
+                                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                                    >
+                                        {loading ? 'Saving...' : 'Save Changes'}
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setIsEditing(false);
+                                            setError('');
+                                            setSuccess('');
+                                            // Reset form data to original values
+                                            if (userData) {
+                                                setFormData({
+                                                    firstName: userData.firstName || '',
+                                                    lastName: userData.lastName || '',
+                                                    email: userData.email || auth.currentUser?.email || '',
+                                                    phone: userData.phone || '',
+                                                    businessName: userData.businessName || ''
+                                                });
+                                            }
+                                        }}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition-colors touch-manipulation"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="pt-4 sm:pt-6 border-t border-gray-200">
+                                <h4 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Account Settings</h4>
+                                <div className="space-y-1 sm:space-y-2">
+                                    <button className="w-full text-left px-3 sm:px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-gray-700 touch-manipulation text-sm sm:text-base">
                                         Change Password
                                     </button>
-                                    <button className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-gray-700">
+                                    <button className="w-full text-left px-3 sm:px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-gray-700 touch-manipulation text-sm sm:text-base">
                                         Notification Preferences
                                     </button>
-                                    <button className="w-full text-left px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-red-600 font-semibold">
+                                    <button
+                                        onClick={handleLogout}
+                                        className="w-full text-left px-3 sm:px-4 py-3 hover:bg-red-50 rounded-lg transition-colors text-red-600 font-semibold touch-manipulation text-sm sm:text-base"
+                                    >
+                                        Logout
+                                    </button>
+                                    <button className="w-full text-left px-3 sm:px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-red-600 font-semibold touch-manipulation text-sm sm:text-base">
                                         Delete Account
                                     </button>
                                 </div>
@@ -990,10 +1299,10 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                 </div>
 
                 {/* Footer */}
-                <div className="p-6 border-t border-gray-200 bg-gray-50">
-                    <button className="w-full text-red-600 hover:bg-red-50 font-semibold py-3 rounded-lg transition-colors">
-                        Log Out
-                    </button>
+                <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50">
+                    <p className="text-center text-gray-500 text-xs sm:text-sm">
+                        BRNNO Mobile Auto Detailing
+                    </p>
                 </div>
             </div>
         </>
@@ -3005,46 +3314,76 @@ const BRNNOMarketplace = () => {
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
 
+    // Authentication state
+    const [user, setUser] = useState(null);
+    const [userData, setUserData] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+
     // Using mock waitlist count for public display
     // Real count is only available in admin dashboard
+
+    // Authentication state listener
+    React.useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            setAuthLoading(false);
+            if (firebaseUser) {
+                setUser(firebaseUser);
+                try {
+                    // Load user data from Firestore
+                    const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+                    if (userDoc.exists()) {
+                        setUserData(userDoc.data());
+                    } else {
+                        // Create user document if it doesn't exist
+                        await setDoc(doc(db, 'users', firebaseUser.uid), {
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName || '',
+                            accountType: 'customer',
+                            createdAt: serverTimestamp(),
+                            role: 'user'
+                        });
+                        setUserData({
+                            uid: firebaseUser.uid,
+                            email: firebaseUser.email,
+                            displayName: firebaseUser.displayName || '',
+                            accountType: 'customer',
+                            role: 'user'
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading user data:', error);
+                }
+            } else {
+                setUser(null);
+                setUserData(null);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
 
     // Admin access with authentication
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
 
         if (params.get('admin') === 'brnno2025') {
-            // Listen for auth state changes
-            const unsubscribe = onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    try {
-                        console.log('Checking admin status for user:', user.uid);
-                        // Check if user is admin in Firestore
-                        const userDoc = await getDoc(doc(db, 'users', user.uid));
-                        if (userDoc.exists() && userDoc.data().role === 'admin') {
-                            console.log('Admin access granted');
-                            setShowAdminDashboard(true);
-                            setIsAdmin(true);
-                        } else {
-                            console.log('Access denied - not admin');
-                            alert('Access denied. Admin privileges required.');
-                            setShowAdminDashboard(false);
-                            setIsAdmin(false);
-                        }
-                    } catch (error) {
-                        console.error('Error checking admin status:', error);
-                        alert('Error checking admin privileges.');
-                    }
-                } else {
-                    // Not logged in - show login modal
-                    console.log('User not logged in - showing login modal');
-                    alert('Please log in first to access admin dashboard');
-                    setShowLoginModal(true);
-                }
-            });
-
-            return () => unsubscribe();
+            if (user && userData && userData.role === 'admin') {
+                console.log('Admin access granted');
+                setShowAdminDashboard(true);
+                setIsAdmin(true);
+            } else if (user && userData && userData.role !== 'admin') {
+                console.log('Access denied - not admin');
+                alert('Access denied. Admin privileges required.');
+                setShowAdminDashboard(false);
+                setIsAdmin(false);
+            } else if (!user) {
+                console.log('User not logged in - showing login modal');
+                alert('Please log in first to access admin dashboard');
+                setShowLoginModal(true);
+            }
         }
-    }, []);
+    }, [user, userData]);
 
     const services = [
         {
@@ -3374,18 +3713,61 @@ const BRNNOMarketplace = () => {
 
                         {/* Desktop Auth Buttons */}
                         <div className="hidden lg:flex items-center gap-3">
-                            <button
-                                onClick={() => setShowLoginModal(true)}
-                                className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Log In
-                            </button>
-                            <button
-                                onClick={() => setShowSignupModal(true)}
-                                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                            >
-                                Sign Up
-                            </button>
+                            {user ? (
+                                // User is logged in - show user info and logout
+                                <>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right">
+                                            <p className="text-sm font-semibold text-gray-800">
+                                                {userData?.firstName && userData?.lastName
+                                                    ? `${userData.firstName} ${userData.lastName}`
+                                                    : user.displayName || 'User'
+                                                }
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                                {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => setShowProfilePanel(true)}
+                                            className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-cyan-600 transition-colors"
+                                        >
+                                            {userData?.firstName && userData?.lastName
+                                                ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
+                                                : user.displayName?.charAt(0) || 'U'
+                                            }
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                await signOut(auth);
+                                            } catch (error) {
+                                                console.error('Logout error:', error);
+                                            }
+                                        }}
+                                        className="text-gray-600 hover:text-red-500 px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                // User is not logged in - show login/signup buttons
+                                <>
+                                    <button
+                                        onClick={() => setShowLoginModal(true)}
+                                        className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                        Log In
+                                    </button>
+                                    <button
+                                        onClick={() => setShowSignupModal(true)}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Sign Up
+                                    </button>
+                                </>
+                            )}
                         </div>
 
                         {/* Mobile Menu Button */}
@@ -3474,24 +3856,65 @@ const BRNNOMarketplace = () => {
                                     Become a Provider
                                 </button>
                                 <div className="border-t border-gray-200 pt-3 mt-2">
-                                    <button
-                                        onClick={() => {
-                                            setShowLoginModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Log In
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowSignupModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
-                                    >
-                                        Sign Up
-                                    </button>
+                                    {user ? (
+                                        // User is logged in - show user info and logout
+                                        <>
+                                            <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-gray-50 rounded-lg">
+                                                <div className="w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                                    {userData?.firstName && userData?.lastName
+                                                        ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
+                                                        : user.displayName?.charAt(0) || 'U'
+                                                    }
+                                                </div>
+                                                <div className="flex-1">
+                                                    <p className="text-sm font-semibold text-gray-800">
+                                                        {userData?.firstName && userData?.lastName
+                                                            ? `${userData.firstName} ${userData.lastName}`
+                                                            : user.displayName || 'User'
+                                                        }
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        await signOut(auth);
+                                                        setShowMobileMenu(false);
+                                                    } catch (error) {
+                                                        console.error('Logout error:', error);
+                                                    }
+                                                }}
+                                                className="w-full text-left text-red-600 hover:text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                                            >
+                                                Logout
+                                            </button>
+                                        </>
+                                    ) : (
+                                        // User is not logged in - show login/signup buttons
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    setShowLoginModal(true);
+                                                    setShowMobileMenu(false);
+                                                }}
+                                                className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                            >
+                                                Log In
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowSignupModal(true);
+                                                    setShowMobileMenu(false);
+                                                }}
+                                                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
+                                            >
+                                                Sign Up
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
