@@ -39,8 +39,7 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 { from: 'public/BRNNO_logov3.jpg', to: 'BRNNO_logov3.jpg' },
-                { from: 'public/app.html', to: 'app.html' },
-                { from: 'public/landing.html', to: 'landing.html' }
+                { from: 'public/app.html', to: 'app.html' }
             ]
         })
     ],
