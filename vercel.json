@@ -29,10 +29,6 @@
       "dest": "/app.html"
     },
     {
-      "src": "/landing.html",
-      "dest": "/landing.html"
-    },
-    {
       "src": "/(.*)",
       "dest": "/index.html"
     }
