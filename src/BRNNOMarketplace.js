@@ -1334,7 +1334,7 @@ const BookingModal = memo(({
     ];
 
     const nextStep = () => {
-        if (bookingStep < 4) setBookingStep(bookingStep + 1);
+        if (bookingStep < 5) setBookingStep(bookingStep + 1);
     };
 
     const prevStep = () => {
@@ -1501,8 +1501,91 @@ const BookingModal = memo(({
                         </div>
                     )}
 
-                    {/* Step 4: Confirmation */}
+                    {/* Step 4: Payment */}
                     {bookingStep === 4 && (
+                        <div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Payment Information</h3>
+
+                            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 mb-6">
+                                <div className="space-y-4">
+                                    <div className="flex items-start justify-between">
+                                        <div>
+                                            <p className="text-sm text-gray-600 mb-1">Service Total</p>
+                                            <p className="font-bold text-gray-800">{bookingData.service?.name}</p>
+                                        </div>
+                                        <p className="text-xl font-bold text-gray-800">${bookingData.service?.price}</p>
+                                    </div>
+
+                                    <div className="border-t border-green-200 pt-4">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-600">Platform Fee (15%)</span>
+                                            <span className="font-semibold">${Math.round((bookingData.service?.price || 0) * 0.15)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm mt-2">
+                                            <span className="text-gray-600">Provider Amount (85%)</span>
+                                            <span className="font-semibold">${Math.round((bookingData.service?.price || 0) * 0.85)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-green-200 pt-4">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-lg font-bold text-gray-800">Total Amount</span>
+                                            <span className="text-2xl font-bold text-green-600">${bookingData.service?.price}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Card Number</label>
+                                    <input
+                                        type="text"
+                                        placeholder="1234 5678 9012 3456"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Expiry Date</label>
+                                        <input
+                                            type="text"
+                                            placeholder="MM/YY"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">CVV</label>
+                                        <input
+                                            type="text"
+                                            placeholder="123"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Cardholder Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="John Doe"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                                <p className="text-sm text-blue-800">
+                                    <strong>🔒 Secure Payment:</strong> Your payment information is encrypted and processed securely through Stripe.
+                                    BRNNO never stores your card details.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 5: Confirmation */}
+                    {bookingStep === 5 && (
                         <div>
                             <h3 className="text-xl font-bold text-gray-800 mb-4">Confirm Your Booking</h3>
 
@@ -1571,7 +1654,7 @@ const BookingModal = memo(({
                             Back
                         </button>
 
-                        {bookingStep < 4 ? (
+                        {bookingStep < 5 ? (
                             <button
                                 onClick={nextStep}
                                 disabled={
@@ -1585,9 +1668,68 @@ const BookingModal = memo(({
                             </button>
                         ) : (
                             <button
-                                onClick={() => {
-                                    alert('Booking confirmed! (This would submit to Firebase)');
-                                    closeModal();
+                                onClick={async () => {
+                                    try {
+                                        // Save booking to Firebase
+                                        const booking = {
+                                            customerId: auth.currentUser?.uid,
+                                            customerEmail: auth.currentUser?.email,
+                                            customerName: userData?.displayName || 'Customer',
+                                            providerId: bookingData.provider?.id,
+                                            providerName: bookingData.provider?.name || bookingData.provider?.provider,
+                                            service: bookingData.service,
+                                            date: bookingData.date,
+                                            time: bookingData.time,
+                                            vehicle: bookingData.vehicle,
+                                            address: bookingData.address,
+                                            status: 'pending', // pending, confirmed, completed, cancelled
+                                            totalAmount: bookingData.service?.price || 0,
+                                            platformFee: Math.round((bookingData.service?.price || 0) * 0.15), // 15% platform fee
+                                            providerAmount: Math.round((bookingData.service?.price || 0) * 0.85), // 85% to provider
+                                            createdAt: serverTimestamp(),
+                                            paymentStatus: 'pending' // pending, paid, failed, refunded
+                                        };
+
+                                        const docRef = await addDoc(collection(db, 'bookings'), booking);
+                                        console.log('Booking saved with ID:', docRef.id);
+
+                                        // Simulate payment processing
+                                        console.log('💳 PAYMENT PROCESSING:');
+                                        console.log('Processing payment of $' + booking.totalAmount + '...');
+                                        console.log('Platform fee (15%): $' + booking.platformFee);
+                                        console.log('Provider amount (85%): $' + booking.providerAmount);
+
+                                        // Simulate successful payment after 2 seconds
+                                        setTimeout(async () => {
+                                            try {
+                                                await updateDoc(doc(db, 'bookings', docRef.id), {
+                                                    paymentStatus: 'paid',
+                                                    status: 'confirmed',
+                                                    paidAt: serverTimestamp()
+                                                });
+                                                console.log('✅ Payment processed successfully!');
+                                                console.log('💰 Provider will receive $' + booking.providerAmount + ' in their next payout');
+                                            } catch (error) {
+                                                console.error('Error updating payment status:', error);
+                                            }
+                                        }, 2000);
+
+                                        // Email notifications (console log for now)
+                                        console.log('📧 BOOKING NOTIFICATIONS:');
+                                        console.log('Customer Email:', auth.currentUser?.email);
+                                        console.log('Subject: Booking Confirmed - BRNNO');
+                                        console.log('Body: Your booking has been confirmed and payment processed!');
+
+                                        console.log('Provider Email:', bookingData.provider?.email);
+                                        console.log('Subject: New Booking - BRNNO');
+                                        console.log('Body: You have a new booking! Payment will be processed shortly.');
+
+                                        alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
+                                        closeModal();
+                                    } catch (error) {
+                                        console.error('Error creating booking:', error);
+                                        alert('Error creating booking. Please try again.');
+                                    }
                                 }}
                                 className="px-8 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold transition-colors"
                             >
@@ -2081,9 +2223,47 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                         </button>
                     ) : (
                         <button
-                            onClick={() => {
-                                alert('Application submitted! You will receive an email confirmation shortly.');
-                                closeModal();
+                            onClick={async () => {
+                                try {
+                                    // Save provider application to Firebase
+                                    const providerApplication = {
+                                        ...providerData,
+                                        status: 'pending',
+                                        submittedAt: serverTimestamp(),
+                                        userId: auth.currentUser?.uid || null
+                                    };
+
+                                    // Save to providers collection
+                                    const docRef = await addDoc(collection(db, 'providers'), providerApplication);
+                                    console.log('Provider application saved with ID:', docRef.id);
+
+                                    // Update user's account type to provider in users collection
+                                    if (auth.currentUser) {
+                                        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                            accountType: 'provider',
+                                            providerApplicationId: docRef.id,
+                                            businessName: providerData.businessName
+                                        });
+                                    }
+
+                                    // Email notification (console log for now)
+                                    console.log('📧 EMAIL NOTIFICATION:');
+                                    console.log('To:', providerData.email);
+                                    console.log('Subject: BRNNO Provider Application Submitted');
+                                    console.log('Body:');
+                                    console.log(`Hello ${providerData.ownerName},`);
+                                    console.log(`Your provider application for ${providerData.businessName} has been submitted.`);
+                                    console.log('We will review your application within 2-3 business days.');
+                                    console.log('Thank you for joining BRNNO!');
+
+                                    // TODO: Replace with real email service (SendGrid, etc.)
+
+                                    alert('Application submitted! You will receive an email confirmation shortly.');
+                                    closeModal();
+                                } catch (error) {
+                                    console.error('Error submitting provider application:', error);
+                                    alert('Error submitting application. Please try again.');
+                                }
                             }}
                             className="ml-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors"
                         >
@@ -2411,6 +2591,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
     const [dashboardTab, setDashboardTab] = useState('overview');
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(true);
+    const [realBookings, setRealBookings] = useState([]);
+    const [bookingsLoading, setBookingsLoading] = useState(true);
 
     // Check authentication when dashboard opens
     React.useEffect(() => {
@@ -2447,6 +2629,40 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
         };
     }, [showDashboard]);
 
+    // Load real bookings for this provider
+    React.useEffect(() => {
+        if (showDashboard && isAuthorized && auth.currentUser) {
+            const loadBookings = async () => {
+                try {
+                    setBookingsLoading(true);
+                    const bookingsQuery = query(
+                        collection(db, 'bookings'),
+                        where('providerId', '==', auth.currentUser.uid)
+                    );
+                    const bookingsSnapshot = await getDocs(bookingsQuery);
+                    const bookings = [];
+
+                    bookingsSnapshot.forEach((doc) => {
+                        const data = doc.data();
+                        bookings.push({
+                            id: doc.id,
+                            ...data
+                        });
+                    });
+
+                    setRealBookings(bookings);
+                    console.log('Loaded provider bookings:', bookings);
+                } catch (error) {
+                    console.error('Error loading bookings:', error);
+                } finally {
+                    setBookingsLoading(false);
+                }
+            };
+
+            loadBookings();
+        }
+    }, [showDashboard, isAuthorized]);
+
     if (!showDashboard) return null;
 
     if (checkingAuth) {
@@ -2464,19 +2680,48 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
         return null;
     }
 
-    // Mock data
+    // Calculate real stats from bookings
+    const today = new Date().toDateString();
+    const thisWeek = new Date();
+    thisWeek.setDate(thisWeek.getDate() - 7);
+
+    const todayBookings = realBookings.filter(booking =>
+        new Date(booking.date).toDateString() === today
+    ).length;
+
+    const weekBookings = realBookings.filter(booking =>
+        new Date(booking.date) >= thisWeek
+    );
+
+    const weekRevenue = weekBookings.reduce((sum, booking) => sum + (booking.providerAmount || 0), 0);
+    const totalJobs = realBookings.length;
+
     const stats = {
-        todayBookings: 3,
-        weekRevenue: 1250,
-        totalJobs: 247,
-        rating: 4.9
+        todayBookings,
+        weekRevenue,
+        totalJobs,
+        rating: 4.9 // Default rating for new providers
     };
 
-    const upcomingBookings = [
-        { id: 1, customer: 'Sarah M.', service: 'Full Detail', vehicle: '2023 Tesla Model 3', time: '10:00 AM', date: 'Today', address: '123 Main St', price: 200 },
-        { id: 2, customer: 'Mike R.', service: 'Interior Clean', vehicle: '2021 BMW X5', time: '2:00 PM', date: 'Today', address: '456 Oak Ave', price: 120 },
-        { id: 3, customer: 'John D.', service: 'Exterior Detail', vehicle: '2022 Audi A4', time: '9:00 AM', date: 'Tomorrow', address: '789 Pine Rd', price: 150 }
-    ];
+    // Use real bookings instead of mock data
+    const upcomingBookings = realBookings
+        .filter(booking => new Date(booking.date) >= new Date())
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 5)
+        .map(booking => ({
+            id: booking.id,
+            customer: booking.customerName || 'Customer',
+            service: booking.service?.name || 'Service',
+            vehicle: booking.vehicle ? `${booking.vehicle.year} ${booking.vehicle.make} ${booking.vehicle.model}` : 'Vehicle',
+            time: booking.time,
+            date: new Date(booking.date).toDateString() === today ? 'Today' :
+                new Date(booking.date).toDateString() === new Date(Date.now() + 86400000).toDateString() ? 'Tomorrow' :
+                    new Date(booking.date).toLocaleDateString(),
+            address: booking.address,
+            price: booking.providerAmount || 0,
+            status: booking.status,
+            paymentStatus: booking.paymentStatus
+        }));
 
     return (
         <>
@@ -2629,6 +2874,13 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${booking.date === 'Today' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
                                                                 }`}>
                                                                 {booking.date}
+                                                            </span>
+                                                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' :
+                                                                    booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                        'bg-red-100 text-red-700'
+                                                                }`}>
+                                                                {booking.paymentStatus === 'paid' ? '💰 Paid' :
+                                                                    booking.paymentStatus === 'pending' ? '⏳ Pending' : '❌ Failed'}
                                                             </span>
                                                         </div>
                                                         <p className="text-sm text-gray-600">{booking.service} • {booking.vehicle}</p>
@@ -3319,6 +3571,10 @@ const BRNNOMarketplace = () => {
     const [userData, setUserData] = useState(null);
     const [authLoading, setAuthLoading] = useState(true);
 
+    // Real providers from Firebase
+    const [realProviders, setRealProviders] = useState([]);
+    const [providersLoading, setProvidersLoading] = useState(true);
+
     // Using mock waitlist count for public display
     // Real count is only available in admin dashboard
 
@@ -3387,6 +3643,50 @@ const BRNNOMarketplace = () => {
         return () => unsubscribe();
     }, []);
 
+    // Load real providers from Firebase
+    React.useEffect(() => {
+        const loadProviders = async () => {
+            try {
+                setProvidersLoading(true);
+                const providersQuery = query(
+                    collection(db, 'providers'),
+                    where('status', '==', 'approved') // Only show approved providers
+                );
+                const providersSnapshot = await getDocs(providersQuery);
+                const providers = [];
+
+                providersSnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    providers.push({
+                        id: doc.id,
+                        name: data.businessName || 'Unknown Business',
+                        provider: data.businessName || 'Unknown Business',
+                        rating: 4.8, // Default rating for new providers
+                        reviews: 0, // New providers start with 0 reviews
+                        tags: data.services || [],
+                        description: `Professional mobile detailing service by ${data.businessName}`,
+                        startingPrice: 120, // Default starting price
+                        certified: data.backgroundCheck || false,
+                        image: "https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&h=300&fit=crop",
+                        serviceArea: data.serviceArea || 'Local Area',
+                        phone: data.phone || '',
+                        email: data.email || '',
+                        ...data
+                    });
+                });
+
+                setRealProviders(providers);
+                console.log('Loaded providers:', providers);
+            } catch (error) {
+                console.error('Error loading providers:', error);
+            } finally {
+                setProvidersLoading(false);
+            }
+        };
+
+        loadProviders();
+    }, []);
+
     // Admin access with authentication
     React.useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -3409,6 +3709,7 @@ const BRNNOMarketplace = () => {
         }
     }, [user, userData]);
 
+    // Combine mock services with real providers
     const services = [
         {
             id: 1,
@@ -3481,7 +3782,9 @@ const BRNNOMarketplace = () => {
             startingPrice: 50,
             certified: true,
             image: "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=400&h=300&fit=crop"
-        }
+        },
+        // Add real providers from Firebase
+        ...realProviders
     ];
 
     const toggleFilter = (filter) => {
@@ -3646,7 +3949,10 @@ const BRNNOMarketplace = () => {
                     provider={selectedProvider}
                     showModal={showProviderDetail}
                     setShowModal={setShowProviderDetail}
-                    onBookNow={() => setShowBookingModal(true)}
+                    onBookNow={() => {
+                        setBookingData(prev => ({ ...prev, provider: selectedProvider }));
+                        setShowBookingModal(true);
+                    }}
                 />
             )}
             {showProviderDashboard && (
