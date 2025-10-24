@@ -3410,83 +3410,8 @@ const BRNNOMarketplace = () => {
         }
     }, [user, userData]);
 
-    // Combine mock services with real providers
-    const services = [
-        {
-            id: 1,
-            name: "Premium Full Detail",
-            provider: "Elite Auto Spa",
-            rating: 4.9,
-            reviews: 247,
-            tags: ["Exterior", "Interior", "Luxury"],
-            description: "Complete interior and exterior detailing service for all vehicle types.",
-            startingPrice: 150,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&h=300&fit=crop"
-        },
-        {
-            id: 2,
-            name: "Interior Deep Clean",
-            provider: "Pristine Mobile",
-            rating: 4.8,
-            reviews: 189,
-            tags: ["Interior", "Deep Clean", "Odor Removal"],
-            description: "Professional interior cleaning with steam and extraction methods.",
-            startingPrice: 120,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=400&h=300&fit=crop"
-        },
-        {
-            id: 3,
-            name: "Exterior Polish & Wax",
-            provider: "Shine Kings",
-            rating: 4.9,
-            reviews: 312,
-            tags: ["Exterior", "Polish", "Wax"],
-            description: "Hand wash, clay bar treatment, polish and premium wax application.",
-            startingPrice: 200,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=400&h=300&fit=crop"
-        },
-        {
-            id: 4,
-            name: "Ceramic Coating",
-            provider: "Pro Shield Auto",
-            rating: 4.7,
-            reviews: 156,
-            tags: ["Exterior", "Ceramic", "Protection"],
-            description: "Professional ceramic coating application with 5-year warranty.",
-            startingPrice: 800,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=400&h=300&fit=crop"
-        },
-        {
-            id: 5,
-            name: "Paint Correction",
-            provider: "Detail Masters",
-            rating: 4.9,
-            reviews: 203,
-            tags: ["Exterior", "Paint Correction", "Polish"],
-            description: "Multi-stage paint correction to remove swirls and scratches.",
-            startingPrice: 400,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=400&h=300&fit=crop"
-        },
-        {
-            id: 6,
-            name: "Quick Wash & Vac",
-            provider: "Express Detail Co",
-            rating: 4.6,
-            reviews: 445,
-            tags: ["Exterior", "Interior", "Quick Service"],
-            description: "Fast and efficient wash and vacuum for busy schedules.",
-            startingPrice: 50,
-            certified: true,
-            image: "https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?w=400&h=300&fit=crop"
-        },
-        // Add real providers from Firebase
-        ...realProviders
-    ];
+    // Use only real providers from Firebase
+    const services = realProviders;
 
     const toggleFilter = (filter) => {
         setActiveFilters(prev =>
