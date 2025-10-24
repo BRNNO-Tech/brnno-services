@@ -4,6 +4,7 @@ import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, wh
 import { db, auth } from './firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, signOut, updatePassword } from 'firebase/auth';
 import locationService from './locationService';
+import AddressInput from './AddressInput';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -234,27 +235,7 @@ const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
     );
 };
 
-// Separate component for address input with its own state
-const AddressInput = memo(({ initialValue, onAddressChange }) => {
-    console.log('AddressInput re-rendered'); // Debug log
-    const [localAddress, setLocalAddress] = useState(initialValue || '');
-
-    const handleChange = (e) => {
-        const newValue = e.target.value;
-        setLocalAddress(newValue);
-        onAddressChange(newValue);
-    };
-
-    return (
-        <input
-            type="text"
-            placeholder="Enter your address..."
-            value={localAddress}
-            onChange={handleChange}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-        />
-    );
-});
+// AddressInput component is now imported from separate file
 
 const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, setShowSignupModal }) => {
     const [email, setEmail] = useState('');
@@ -1479,29 +1460,29 @@ const BookingModal = memo(({
                                 <div className="space-y-3 mb-6">
                                     {userVehicles.length > 0 ? (
                                         userVehicles.map(vehicle => (
-                                            <div
-                                                key={vehicle.id}
-                                                onClick={() => setBookingData({ ...bookingData, vehicle })}
-                                                className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
-                                                    ? 'border-cyan-500 bg-cyan-50'
-                                                    : 'border-gray-200 hover:border-cyan-300'
-                                                    }`}
-                                            >
-                                                <div className="bg-cyan-100 p-3 rounded-lg">
-                                                    <Car className="text-cyan-600" size={24} />
-                                                </div>
+                                        <div
+                                            key={vehicle.id}
+                                            onClick={() => setBookingData({ ...bookingData, vehicle })}
+                                            className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
+                                                ? 'border-cyan-500 bg-cyan-50'
+                                                : 'border-gray-200 hover:border-cyan-300'
+                                                }`}
+                                        >
+                                            <div className="bg-cyan-100 p-3 rounded-lg">
+                                                <Car className="text-cyan-600" size={24} />
+                                            </div>
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-gray-800">
-                                                        {vehicle.year} {vehicle.make} {vehicle.model}
-                                                    </h4>
+                                                <h4 className="font-bold text-gray-800">
+                                                    {vehicle.year} {vehicle.make} {vehicle.model}
+                                                </h4>
                                                     {vehicle.color && (
                                                         <p className="text-sm text-gray-600">{vehicle.color}</p>
                                                     )}
                                                     {vehicle.licensePlate && (
                                                         <p className="text-xs text-gray-500">License: {vehicle.licensePlate}</p>
                                                     )}
-                                                </div>
                                             </div>
+                                        </div>
                                         ))
                                     ) : (
                                         <div className="text-center py-8 text-gray-500">
@@ -3782,11 +3763,19 @@ const BRNNOMarketplace = () => {
     React.useEffect(() => {
         const initializeLocation = async () => {
             try {
-                // For now, we'll skip Google Maps initialization in browser
-                // The location service will work with fallback text-based search
-                console.log('Location service ready (text-based search mode)');
+                // Get Google Maps API key from environment variables
+                const API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+                
+                if (!API_KEY) {
+                    console.log('Google Maps API key not found. Using fallback location service.');
+                    return;
+                }
+                
+                await locationService.initialize(API_KEY);
+                console.log('Google Maps API initialized for location services');
             } catch (error) {
                 console.error('Failed to initialize location service:', error);
+                console.log('Using fallback location service');
             }
         };
         
@@ -3836,7 +3825,7 @@ const BRNNOMarketplace = () => {
     const filteredServices = services.filter(service => {
         // If "All Areas" is selected, show all providers
         if (selectedArea === 'All Areas') {
-            return true;
+        return true;
         }
 
         // If user has location and provider has coordinates, use distance-based filtering

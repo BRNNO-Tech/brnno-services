@@ -7,14 +7,28 @@ class LocationService {
         this.map = null;
     }
 
-    // Initialize Google Maps API (optional - works without it too)
+    // Initialize Google Maps API
     async initialize(apiKey) {
         if (this.googleMapsLoaded) return;
 
-        // Skip Google Maps for now - use fallback methods
-        console.log('Location service initialized (fallback mode)');
-        this.googleMapsLoaded = true;
-        return Promise.resolve();
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
+            script.onload = () => {
+                this.googleMapsLoaded = true;
+                this.geocoder = new google.maps.Geocoder();
+                this.autocompleteService = new google.maps.places.AutocompleteService();
+                this.placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                console.log('Google Maps API loaded successfully');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('Failed to load Google Maps API');
+                this.googleMapsLoaded = true; // Set to true to prevent retries
+                resolve(); // Resolve anyway to continue with fallback
+            };
+            document.head.appendChild(script);
+        });
     }
 
     // Convert address to coordinates
@@ -65,9 +79,74 @@ class LocationService {
         });
     }
 
+    // Get address autocomplete suggestions
+    async getAutocompleteSuggestions(input, options = {}) {
+        if (!this.autocompleteService) {
+            console.log('Google Places API not available, using fallback');
+            return [];
+        }
+
+        return new Promise((resolve) => {
+            const request = {
+                input: input,
+                types: ['address'],
+                componentRestrictions: { country: 'us' }, // Focus on US addresses
+                ...options
+            };
+
+            this.autocompleteService.getPlacePredictions(request, (predictions, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+                    const suggestions = predictions.map(prediction => ({
+                        description: prediction.description,
+                        placeId: prediction.place_id,
+                        structuredFormatting: prediction.structured_formatting
+                    }));
+                    resolve(suggestions);
+                } else {
+                    console.log('Autocomplete failed:', status);
+                    resolve([]);
+                }
+            });
+        });
+    }
+
+    // Get place details from place ID
+    async getPlaceDetails(placeId) {
+        if (!this.placesService) {
+            console.log('Google Places API not available');
+            return null;
+        }
+
+        return new Promise((resolve) => {
+            const request = {
+                placeId: placeId,
+                fields: ['formatted_address', 'geometry', 'address_components']
+            };
+
+            this.placesService.getDetails(request, (place, status) => {
+                if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+                    resolve({
+                        formattedAddress: place.formatted_address,
+                        coordinates: {
+                            lat: place.geometry.location.lat(),
+                            lng: place.geometry.location.lng()
+                        },
+                        addressComponents: place.address_components
+                    });
+                } else {
+                    console.log('Place details failed:', status);
+                    resolve(null);
+                }
+            });
+        });
+    }
+
     // Get city/state from coordinates
     async reverseGeocode(lat, lng) {
-        if (!this.geocoder) throw new Error('Google Maps not initialized');
+        if (!this.geocoder) {
+            console.log('Google Maps not available, using fallback');
+            return { city: 'Unknown', state: 'UT', formattedAddress: 'Unknown location' };
+        }
 
         return new Promise((resolve, reject) => {
             this.geocoder.geocode({ location: { lat, lng } }, (results, status) => {
@@ -87,7 +166,8 @@ class LocationService {
 
                     resolve({ city, state, formattedAddress: results[0].formatted_address });
                 } else {
-                    reject(new Error(`Reverse geocoding failed: ${status}`));
+                    console.log(`Reverse geocoding failed: ${status}`);
+                    resolve({ city: 'Unknown', state: 'UT', formattedAddress: 'Unknown location' });
                 }
             });
         });
