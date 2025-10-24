@@ -1126,7 +1126,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                                     >
                                         {loading ? 'Saving...' : 'Save Changes'}
-                                    </button>
+                                </button>
                                     <button
                                         onClick={() => {
                                             setIsEditing(false);
@@ -1608,7 +1608,7 @@ const BookingModal = memo(({
                                         console.log('Body: You have a new booking! Payment will be processed shortly.');
 
                                         alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
-                                        closeModal();
+                                    closeModal();
                                     } catch (error) {
                                         console.error('Error creating booking:', error);
                                         alert('Error creating booking. Please try again.');
@@ -1898,11 +1898,11 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                         Insurance will be required before accepting bookings, but you can upload it later in your provider dashboard.
                                     </p>
                                 </div>
-                                
+
                                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                     <div className="flex items-start gap-3">
-                                        <input 
-                                            type="checkbox" 
+                                        <input
+                                            type="checkbox"
                                             id="skip-insurance"
                                             className="mt-1"
                                             onChange={(e) => {
@@ -1926,17 +1926,17 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                 {!providerData.skipInsurance && (
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer mt-4">
-                                        <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
-                                        <label htmlFor="insurance-upload" className="cursor-pointer">
-                                            <div className="text-cyan-600 mb-2">
-                                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                </svg>
-                                            </div>
-                                            <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
-                                            <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                                        </label>
-                                    </div>
+                                    <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
+                                    <label htmlFor="insurance-upload" className="cursor-pointer">
+                                        <div className="text-cyan-600 mb-2">
+                                            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                            </svg>
+                                        </div>
+                                        <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
+                                        <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                                    </label>
+                                </div>
                                 )}
                                 <p className="text-xs text-gray-500 mt-2">Recommended: General liability insurance with minimum $1M coverage</p>
                             </div>
@@ -1991,8 +1991,8 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                 <div className="flex items-start gap-3">
-                                    <input 
-                                        type="checkbox" 
+                                    <input
+                                        type="checkbox"
                                         id="skip-payment"
                                         className="mt-1"
                                         onChange={(e) => {
@@ -2003,7 +2003,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             }
                                         }}
                                     />
-                                    <div>
+                            <div>
                                         <label htmlFor="skip-payment" className="font-semibold text-gray-800">
                                             Skip payment setup for now
                                         </label>
@@ -2018,43 +2018,43 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="John Doe or Elite Auto Spa LLC"
+                                <input
+                                    type="text"
+                                    placeholder="John Doe or Elite Auto Spa LLC"
                                             value={providerData.bankAccountHolder || ''}
                                             onChange={(e) => setProviderData({ ...providerData, bankAccountHolder: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div>
+                            <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="123456789"
-                                            value={providerData.routingNumber}
-                                            onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                <input
+                                    type="text"
+                                    placeholder="123456789"
+                                    value={providerData.routingNumber}
+                                    onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div>
+                            <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Account Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Account number"
-                                            value={providerData.bankAccount}
-                                            onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                <input
+                                    type="text"
+                                    placeholder="Account number"
+                                    value={providerData.bankAccount}
+                                    onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <p className="text-xs text-gray-600">
-                                            🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
-                                            and never stores your full account details on our servers.
-                                        </p>
-                                    </div>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <p className="text-xs text-gray-600">
+                                    🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
+                                    and never stores your full account details on our servers.
+                                </p>
+                            </div>
                                 </>
                             )}
                         </div>
@@ -2107,13 +2107,13 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             </span>
                                         </p>
                                         <p>
-                                            <span className="text-gray-600">Insurance:</span> 
+                                            <span className="text-gray-600">Insurance:</span>
                                             <span className="font-semibold ml-2">
                                                 {providerData.skipInsurance ? '⏳ Will upload later' : '📄 Ready to upload'}
                                             </span>
                                         </p>
                                         <p>
-                                            <span className="text-gray-600">Payment Setup:</span> 
+                                            <span className="text-gray-600">Payment Setup:</span>
                                             <span className="font-semibold ml-2">
                                                 {providerData.skipPayment ? '⏳ Will set up later' : '💰 Ready to configure'}
                                             </span>
@@ -2245,7 +2245,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     // TODO: Replace with real email service (SendGrid, etc.)
 
                                     alert('Application submitted successfully! You will receive an email confirmation shortly.');
-                                    closeModal();
+                                closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
 
@@ -2265,8 +2265,8 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                             }}
                             disabled={isSubmitting}
                             className={`ml-auto px-8 py-3 text-white rounded-lg font-bold transition-colors flex items-center gap-2 ${isSubmitting
-                                    ? 'bg-gray-400 cursor-not-allowed'
-                                    : 'bg-green-600 hover:bg-green-700'
+                                ? 'bg-gray-400 cursor-not-allowed'
+                                : 'bg-green-600 hover:bg-green-700'
                                 }`}
                         >
                             {isSubmitting ? (
@@ -2602,6 +2602,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [realBookings, setRealBookings] = useState([]);
     const [bookingsLoading, setBookingsLoading] = useState(true);
+    const [providerInfo, setProviderInfo] = useState(null);
 
     // Check authentication when dashboard opens
     React.useEffect(() => {
@@ -2638,12 +2639,20 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
         };
     }, [showDashboard]);
 
-    // Load real bookings for this provider
+    // Load provider info and bookings
     React.useEffect(() => {
         if (showDashboard && isAuthorized && auth.currentUser) {
-            const loadBookings = async () => {
+            const loadProviderData = async () => {
                 try {
                     setBookingsLoading(true);
+                    
+                    // Load provider info from users collection
+                    const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                    if (userDoc.exists()) {
+                        setProviderInfo(userDoc.data());
+                    }
+                    
+                    // Load bookings
                     const bookingsQuery = query(
                         collection(db, 'bookings'),
                         where('providerId', '==', auth.currentUser.uid)
@@ -2660,15 +2669,15 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                     });
 
                     setRealBookings(bookings);
-                    console.log('Loaded provider bookings:', bookings);
+                    console.log('Loaded provider data:', { providerInfo: userDoc.data(), bookings });
                 } catch (error) {
-                    console.error('Error loading bookings:', error);
+                    console.error('Error loading provider data:', error);
                 } finally {
                     setBookingsLoading(false);
                 }
             };
 
-            loadBookings();
+            loadProviderData();
         }
     }, [showDashboard, isAuthorized]);
 
@@ -2709,7 +2718,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
         todayBookings,
         weekRevenue,
         totalJobs,
-        rating: 4.9 // Default rating for new providers
+        rating: providerInfo?.rating || 0, // Use real rating or 0 for new providers
+        reviewCount: providerInfo?.reviewCount || 0 // Use real review count
     };
 
     // Use real bookings instead of mock data
@@ -2748,10 +2758,10 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center gap-3 mb-4">
                             <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-                                EA
+                                {providerInfo?.businessName ? providerInfo.businessName.substring(0, 2).toUpperCase() : 'P'}
                             </div>
                             <div>
-                                <h3 className="font-bold text-gray-800">Elite Auto Spa</h3>
+                                <h3 className="font-bold text-gray-800">{providerInfo?.businessName || 'Provider'}</h3>
                                 <p className="text-xs text-gray-500">Provider Account</p>
                             </div>
                         </div>
@@ -2856,8 +2866,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                             <span className="text-gray-600 text-sm font-semibold">Rating</span>
                                             <span className="text-2xl">⭐</span>
                                         </div>
-                                        <p className="text-3xl font-bold text-gray-800">{stats.rating}</p>
-                                        <p className="text-xs text-gray-600 mt-2">From 247 reviews</p>
+                                        <p className="text-3xl font-bold text-gray-800">{stats.rating > 0 ? stats.rating.toFixed(1) : 'N/A'}</p>
+                                        <p className="text-xs text-gray-600 mt-2">From {stats.reviewCount} reviews</p>
                                     </div>
                                 </div>
 
@@ -3066,8 +3076,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                     </div>
                                     <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6">
                                         <p className="text-purple-100 text-sm mb-2">All Time</p>
-                                        <p className="text-4xl font-bold">$52,450</p>
-                                        <p className="text-purple-100 text-xs mt-2">247 completed jobs</p>
+                                        <p className="text-4xl font-bold">${providerInfo?.totalEarnings || 0}</p>
+                                        <p className="text-purple-100 text-xs mt-2">{stats.totalJobs} completed jobs</p>
                                     </div>
                                 </div>
 
@@ -3105,13 +3115,13 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                     <div className="flex items-center gap-6">
                                         <div className="text-center">
-                                            <div className="text-5xl font-bold text-gray-800 mb-2">4.9</div>
+                                            <div className="text-5xl font-bold text-gray-800 mb-2">{stats.rating > 0 ? stats.rating.toFixed(1) : 'N/A'}</div>
                                             <div className="flex items-center gap-1 mb-1">
                                                 {[1, 2, 3, 4, 5].map(star => (
-                                                    <Star key={star} className="fill-yellow-400 text-yellow-400" size={20} />
+                                                    <Star key={star} className={`${star <= Math.round(stats.rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-300 text-gray-300'}`} size={20} />
                                                 ))}
                                             </div>
-                                            <div className="text-sm text-gray-600">247 reviews</div>
+                                            <div className="text-sm text-gray-600">{stats.reviewCount} reviews</div>
                                         </div>
                                         <div className="flex-1 space-y-2">
                                             {[5, 4, 3, 2, 1].map(rating => (
@@ -3167,7 +3177,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                             <label className="block text-sm font-bold text-gray-700 mb-2">Business Name</label>
                                             <input
                                                 type="text"
-                                                defaultValue="Elite Auto Spa"
+                                                defaultValue={providerInfo?.businessName || ''}
                                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                             />
                                         </div>
@@ -3384,19 +3394,19 @@ const BRNNOMarketplace = () => {
 
         if (params.get('admin') === 'brnno2025') {
             if (user && userData && userData.role === 'admin') {
-                console.log('Admin access granted');
-                setShowAdminDashboard(true);
-                setIsAdmin(true);
+                            console.log('Admin access granted');
+                            setShowAdminDashboard(true);
+                            setIsAdmin(true);
             } else if (user && userData && userData.role !== 'admin') {
-                console.log('Access denied - not admin');
-                alert('Access denied. Admin privileges required.');
-                setShowAdminDashboard(false);
-                setIsAdmin(false);
+                            console.log('Access denied - not admin');
+                            alert('Access denied. Admin privileges required.');
+                            setShowAdminDashboard(false);
+                            setIsAdmin(false);
             } else if (!user) {
-                console.log('User not logged in - showing login modal');
-                alert('Please log in first to access admin dashboard');
-                setShowLoginModal(true);
-            }
+                    console.log('User not logged in - showing login modal');
+                    alert('Please log in first to access admin dashboard');
+                    setShowLoginModal(true);
+                }
         }
     }, [user, userData]);
 
@@ -3739,18 +3749,18 @@ const BRNNOMarketplace = () => {
                             ) : (
                                 // User is not logged in - show login/signup buttons
                                 <>
-                                    <button
-                                        onClick={() => setShowLoginModal(true)}
-                                        className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
-                                    >
-                                        Log In
-                                    </button>
-                                    <button
-                                        onClick={() => setShowSignupModal(true)}
-                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                                    >
-                                        Sign Up
-                                    </button>
+                            <button
+                                onClick={() => setShowLoginModal(true)}
+                                className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
+                            >
+                                Log In
+                            </button>
+                            <button
+                                onClick={() => setShowSignupModal(true)}
+                                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                            >
+                                Sign Up
+                            </button>
                                 </>
                             )}
                         </div>
@@ -3871,24 +3881,24 @@ const BRNNOMarketplace = () => {
                                     ) : (
                                         // User is not logged in - show login/signup buttons
                                         <>
-                                            <button
-                                                onClick={() => {
-                                                    setShowLoginModal(true);
-                                                    setShowMobileMenu(false);
-                                                }}
-                                                className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                            >
-                                                Log In
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowSignupModal(true);
-                                                    setShowMobileMenu(false);
-                                                }}
-                                                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
-                                            >
-                                                Sign Up
-                                            </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowLoginModal(true);
+                                            setShowMobileMenu(false);
+                                        }}
+                                        className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Log In
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowSignupModal(true);
+                                            setShowMobileMenu(false);
+                                        }}
+                                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
+                                    >
+                                        Sign Up
+                                    </button>
                                         </>
                                     )}
                                 </div>
