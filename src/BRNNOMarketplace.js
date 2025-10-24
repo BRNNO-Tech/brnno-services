@@ -2637,20 +2637,14 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all"></div>
                                     </div>
                                 ))}
-                                {/* Additional mock images */}
-                                <div className="relative rounded-lg overflow-hidden">
-                                    <img
-                                        src="https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&h=300&fit=crop"
-                                        alt="Work sample"
-                                        className="w-full h-64 object-cover"
-                                    />
-                                </div>
-                                <div className="relative rounded-lg overflow-hidden">
-                                    <img
-                                        src="https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=400&h=300&fit=crop"
-                                        alt="Work sample"
-                                        className="w-full h-64 object-cover"
-                                    />
+                                {/* Provider can add their own work samples */}
+                                <div className="relative rounded-lg overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300">
+                                    <div className="w-full h-64 flex items-center justify-center">
+                                        <div className="text-center text-gray-500">
+                                            <div className="text-4xl mb-2">📸</div>
+                                            <p className="text-sm">Add your work samples</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3120,10 +3114,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                 </div>
 
                                 <div className="space-y-3">
-                                    {upcomingBookings.concat([
-                                        { id: 4, customer: 'Lisa K.', service: 'Paint Correction', vehicle: '2020 Porsche 911', time: 'Completed', date: 'Yesterday', address: '321 Elm St', price: 400, status: 'completed' },
-                                        { id: 5, customer: 'Tom W.', service: 'Basic Wash', vehicle: '2019 Honda Civic', time: 'Completed', date: 'Oct 8', address: '654 Maple Dr', price: 50, status: 'completed' }
-                                    ]).map(booking => (
+                                    {upcomingBookings.length > 0 ? upcomingBookings.map(booking => (
                                         <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                                             <div className="flex flex-col sm:flex-row justify-between gap-4">
                                                 <div className="flex-1">
@@ -3167,7 +3158,13 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <div className="text-center py-12">
+                                            <div className="text-6xl mb-4">📅</div>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-2">No Bookings Yet</h3>
+                                            <p className="text-gray-600">Your upcoming bookings will appear here</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -3236,13 +3233,13 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6">
                                         <p className="text-green-100 text-sm mb-2">This Week</p>
-                                        <p className="text-4xl font-bold">$1,250</p>
-                                        <p className="text-green-100 text-xs mt-2">+15% from last week</p>
+                                        <p className="text-4xl font-bold">${stats.weekRevenue}</p>
+                                        <p className="text-green-100 text-xs mt-2">From {stats.todayBookings} bookings</p>
                                     </div>
                                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-6">
                                         <p className="text-blue-100 text-sm mb-2">This Month</p>
-                                        <p className="text-4xl font-bold">$4,820</p>
-                                        <p className="text-blue-100 text-xs mt-2">+22% from last month</p>
+                                        <p className="text-4xl font-bold">${Math.round(stats.weekRevenue * 4.3)}</p>
+                                        <p className="text-blue-100 text-xs mt-2">Estimated from weekly data</p>
                                     </div>
                                     <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6">
                                         <p className="text-purple-100 text-sm mb-2">All Time</p>
@@ -3563,7 +3560,7 @@ const BRNNOMarketplace = () => {
                         description: `Professional mobile detailing service by ${data.businessName}`,
                         startingPrice: 120, // Default starting price
                         certified: data.backgroundCheck || false,
-                        image: "https://images.unsplash.com/photo-1607860108855-64acf2078ed9?w=400&h=300&fit=crop",
+                        image: "/BRNNO_logov3.jpg", // Use BRNNO logo as default
                         serviceArea: data.serviceArea || 'Local Area',
                         phone: data.phone || '',
                         email: data.email || '',
