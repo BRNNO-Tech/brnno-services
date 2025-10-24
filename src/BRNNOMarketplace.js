@@ -1744,6 +1744,8 @@ const BookingModal = memo(({
 });
 
 const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, setProviderStep, providerData, setProviderData }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
     // Lock body scroll when modal is open
     React.useEffect(() => {
         if (showModal) {
@@ -2224,27 +2226,64 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                     ) : (
                         <button
                             onClick={async () => {
+                                if (isSubmitting) return;
+                                
+                                setIsSubmitting(true);
                                 try {
+                                    // Validate required fields
+                                    const requiredFields = [
+                                        'businessName', 'businessType', 'ein', 'ownerName', 
+                                        'phone', 'email', 'serviceArea', 'routingNumber', 'bankAccount'
+                                    ];
+                                    
+                                    const missingFields = requiredFields.filter(field => !providerData[field] || providerData[field].trim() === '');
+                                    
+                                    if (missingFields.length > 0) {
+                                        alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
+                                        setIsSubmitting(false);
+                                        return;
+                                    }
+                                    
+                                    if (providerData.services.length < 3) {
+                                        alert('Please select at least 3 services you offer.');
+                                        setIsSubmitting(false);
+                                        return;
+                                    }
+                                    
+                                    if (!providerData.backgroundCheck) {
+                                        alert('You must consent to a background check to join BRNNO.');
+                                        setIsSubmitting(false);
+                                        return;
+                                    }
+                                    
+                                    if (!auth.currentUser) {
+                                        alert('You must be signed in to submit an application. Please sign in and try again.');
+                                        setIsSubmitting(false);
+                                        return;
+                                    }
+
                                     // Save provider application to Firebase
                                     const providerApplication = {
                                         ...providerData,
                                         status: 'pending',
                                         submittedAt: serverTimestamp(),
-                                        userId: auth.currentUser?.uid || null
+                                        userId: auth.currentUser.uid
                                     };
+
+                                    console.log('Submitting provider application:', providerApplication);
 
                                     // Save to providers collection
                                     const docRef = await addDoc(collection(db, 'providers'), providerApplication);
                                     console.log('Provider application saved with ID:', docRef.id);
 
                                     // Update user's account type to provider in users collection
-                                    if (auth.currentUser) {
-                                        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-                                            accountType: 'provider',
-                                            providerApplicationId: docRef.id,
-                                            businessName: providerData.businessName
-                                        });
-                                    }
+                                    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                        accountType: 'provider',
+                                        providerApplicationId: docRef.id,
+                                        businessName: providerData.businessName
+                                    });
+
+                                    console.log('User account updated to provider');
 
                                     // Email notification (console log for now)
                                     console.log('📧 EMAIL NOTIFICATION:');
@@ -2258,16 +2297,40 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                     // TODO: Replace with real email service (SendGrid, etc.)
 
-                                    alert('Application submitted! You will receive an email confirmation shortly.');
+                                    alert('Application submitted successfully! You will receive an email confirmation shortly.');
                                     closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
-                                    alert('Error submitting application. Please try again.');
+                                    
+                                    // More specific error messages
+                                    if (error.code === 'permission-denied') {
+                                        alert('Permission denied. Please make sure you are signed in and try again.');
+                                    } else if (error.code === 'unavailable') {
+                                        alert('Service temporarily unavailable. Please try again in a few moments.');
+                                    } else if (error.message.includes('network')) {
+                                        alert('Network error. Please check your internet connection and try again.');
+                                    } else {
+                                        alert(`Error submitting application: ${error.message}. Please try again.`);
+                                    }
+                                } finally {
+                                    setIsSubmitting(false);
                                 }
                             }}
-                            className="ml-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-colors"
+                            disabled={isSubmitting}
+                            className={`ml-auto px-8 py-3 text-white rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                                isSubmitting 
+                                    ? 'bg-gray-400 cursor-not-allowed' 
+                                    : 'bg-green-600 hover:bg-green-700'
+                            }`}
                         >
-                            Submit Application
+                            {isSubmitting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Submitting...
+                                </>
+                            ) : (
+                                'Submit Application'
+                            )}
                         </button>
                     )}
                 </div>
