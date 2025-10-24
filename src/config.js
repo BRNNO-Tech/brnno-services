@@ -1,19 +1,23 @@
 // Secure configuration for API keys
-// These should be set via environment variables in production
+// For development, you can set these directly here
+// For production, use Vercel environment variables
 
 const config = {
     // Google Maps API Key
-    googleMapsApiKey: process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '',
+    // Set this in your .env file as REACT_APP_GOOGLE_MAPS_API_KEY
+    // Or set it directly here for development (NOT recommended for production)
+    googleMapsApiKey: window.GOOGLE_MAPS_API_KEY || '',
     
     // Stripe API Keys
-    stripePublishableKey: process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || '',
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+    // Set these in your .env file as REACT_APP_STRIPE_PUBLISHABLE_KEY
+    // Or set them directly here for development (NOT recommended for production)
+    stripePublishableKey: 'pk_test_51SAg8pPbLPDcISuo3tL9zQ0SwWtnpMtEabkOadMIttxZbbnZ7OUa1QAUwR0hpCHuEaSLv5mpNRJNL3q29QkisUgR00Pp4LXstT', // Replace with your key
     
-    // Firebase Configuration
+    // Firebase Configuration (if needed)
     firebase: {
-        apiKey: process.env.REACT_APP_FIREBASE_API_KEY || '',
-        authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || '',
-        projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || '',
+        apiKey: '',
+        authDomain: '',
+        projectId: '',
     }
 };
 
