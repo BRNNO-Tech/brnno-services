@@ -3350,7 +3350,7 @@ const BRNNOMarketplace = () => {
         const loadProviders = async () => {
             try {
                 setProvidersLoading(true);
-                
+
                 // First, let's see what's actually in the providers collection
                 const allProvidersQuery = query(collection(db, 'providers'));
                 const allProvidersSnapshot = await getDocs(allProvidersQuery);
@@ -3358,7 +3358,7 @@ const BRNNOMarketplace = () => {
                 allProvidersSnapshot.forEach((doc) => {
                     console.log('Provider doc:', doc.id, doc.data());
                 });
-                
+
                 const providersQuery = query(
                     collection(db, 'providers'),
                     where('status', '==', 'approved') // Only show approved providers
@@ -3433,36 +3433,8 @@ const BRNNOMarketplace = () => {
         );
     };
 
-    // Filter services based on selections
-    const filteredServices = services.filter(service => {
-        // Filter by area (placeholder logic - you'd implement actual area matching)
-        if (selectedArea !== 'All Areas') {
-            // This would check if service is available in selected area
-            // For now, we'll just return true
-        }
-
-        // Filter by type (placeholder logic - you'd implement actual type matching)
-        if (selectedType !== 'All Types') {
-            // This would check if service matches selected type
-            // For now, we'll just return true
-        }
-
-        // Filter by active filters
-        if (activeFilters.includes('Mobile')) {
-            // Check if service is mobile
-        }
-        if (activeFilters.includes('Certified')) {
-            if (!service.certified) return false;
-        }
-        if (activeFilters.includes('Same Day')) {
-            // Check if service offers same day availability
-        }
-        if (activeFilters.includes('Top Rated')) {
-            if (service.rating < 4.8) return false;
-        }
-
-        return true;
-    });
+    // For now, show all providers without filtering
+    const filteredServices = services;
 
     const ServiceCard = ({ service }) => (
         <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
