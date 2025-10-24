@@ -242,7 +242,7 @@ const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
 
 // AddressInput component is now imported from separate file
 
-const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, setShowSignupModal }) => {
+const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, setShowSignupModal, setShowProviderModal }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -347,8 +347,8 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
     if (!showLoginModal) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 relative">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 modal-backdrop">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 relative modal-content">
                 <button
                     onClick={() => setShowLoginModal(false)}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
@@ -370,11 +370,11 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
                         Customer
                     </button>
                     <button
-                        onClick={() => setAuthMode('provider')}
-                        className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${authMode === 'provider'
-                            ? 'bg-cyan-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                        onClick={() => {
+                            setShowLoginModal(false);
+                            setShowProviderModal(true);
+                        }}
+                        className="flex-1 py-2 px-4 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
                     >
                         Provider
                     </button>
@@ -483,7 +483,7 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
     );
 };
 
-const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMode, setShowLoginModal }) => {
+const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMode, setShowLoginModal, setShowProviderModal }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
@@ -604,8 +604,8 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
     if (!showSignupModal) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 modal-backdrop">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto modal-content">
                 <button
                     onClick={() => setShowSignupModal(false)}
                     className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-2xl"
@@ -627,11 +627,11 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
                         Customer
                     </button>
                     <button
-                        onClick={() => setAuthMode('provider')}
-                        className={`flex-1 py-2 px-4 rounded-lg font-semibold transition-colors ${authMode === 'provider'
-                            ? 'bg-cyan-500 text-white'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
+                        onClick={() => {
+                            setShowSignupModal(false);
+                            setShowProviderModal(true);
+                        }}
+                        className="flex-1 py-2 px-4 rounded-lg font-semibold transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200"
                     >
                         Provider
                     </button>
@@ -806,7 +806,7 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
 const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setProfileTab }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
-    const [checkingAuth, setCheckingAuth] = useState(true);
+    const [checkingAuth, setCheckingAuth] = useState(false);
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -832,7 +832,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         if (showProfilePanel) {
             document.body.style.overflow = 'hidden';
 
-            // Check if user is authenticated
+            // Check if user is authenticated - immediate check, no loading state
             if (auth.currentUser) {
                 setIsAuthorized(true);
                 setCheckingAuth(false);
@@ -840,11 +840,9 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             } else {
                 alert('Please sign in first to access your profile.');
                 setShowProfilePanel(false);
-                setCheckingAuth(false);
             }
         } else {
             setIsAuthorized(false);
-            setCheckingAuth(true);
             setUserData(null);
         }
 
@@ -989,17 +987,6 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
 
     if (!showProfilePanel) return null;
 
-    if (checkingAuth) {
-        return (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-                <div className="bg-white rounded-xl p-8 text-center">
-                    <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-gray-600">Verifying access...</p>
-                </div>
-            </div>
-        );
-    }
-
     if (!isAuthorized) {
         return null;
     }
@@ -1008,12 +995,12 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 profile-panel-backdrop"
                 onClick={() => setShowProfilePanel(false)}
             />
 
             {/* Slide-out Panel */}
-            <div className="fixed right-0 top-0 h-full w-full sm:w-[95vw] md:w-[500px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="fixed right-0 top-0 h-full w-full sm:w-[95vw] md:w-[500px] bg-white shadow-2xl z-50 overflow-y-auto profile-panel-slide">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -1049,31 +1036,33 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                 </div>
 
                 {/* Tabs */}
-                <div className="border-b border-gray-200 px-4 sm:px-6 flex gap-1 overflow-x-auto scrollbar-hide">
-                    {[
-                        { id: 'personal', label: 'Personal', icon: '👤' },
-                        { id: 'vehicles', label: 'Vehicles', icon: '🚗' },
-                        { id: 'bookings', label: 'Bookings', icon: '📅' },
-                        { id: 'payments', label: 'Payment', icon: '💳' },
-                        { id: 'addresses', label: 'Addresses', icon: '📍' }
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setProfileTab(tab.id)}
-                            className={`px-3 sm:px-4 py-3 font-semibold text-xs sm:text-sm whitespace-nowrap transition-colors touch-manipulation ${profileTab === tab.id
-                                ? 'text-cyan-600 border-b-2 border-cyan-600'
-                                : 'text-gray-600 hover:text-cyan-500'
-                                }`}
-                        >
-                            <span className="mr-1 sm:mr-2 text-sm sm:text-base">{tab.icon}</span>
-                            <span className="hidden sm:inline">{tab.label}</span>
-                            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                        </button>
-                    ))}
+                <div className="border-b border-gray-200 px-4 sm:px-6">
+                    <div className="flex gap-1 overflow-x-auto profile-tabs-scroll pb-1">
+                        {[
+                            { id: 'personal', label: 'Personal', icon: '👤' },
+                            { id: 'vehicles', label: 'Vehicles', icon: '🚗' },
+                            { id: 'bookings', label: 'Bookings', icon: '📅' },
+                            { id: 'payments', label: 'Payment', icon: '💳' },
+                            { id: 'addresses', label: 'Addresses', icon: '📍' }
+                        ].map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setProfileTab(tab.id)}
+                                className={`flex-shrink-0 px-3 sm:px-4 py-3 font-semibold text-xs sm:text-sm whitespace-nowrap transition-colors touch-manipulation ${profileTab === tab.id
+                                    ? 'text-cyan-600 border-b-2 border-cyan-600'
+                                    : 'text-gray-600 hover:text-cyan-500'
+                                    }`}
+                            >
+                                <span className="mr-1 sm:mr-2 text-sm sm:text-base">{tab.icon}</span>
+                                <span className="hidden sm:inline">{tab.label}</span>
+                                <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-4 sm:p-6">
+                <div className="p-4 sm:p-6 overflow-x-auto">
                     {/* Personal Info Tab */}
                     {profileTab === 'personal' && (
                         <div className="space-y-4 sm:space-y-6">
@@ -1359,8 +1348,8 @@ const BookingModal = memo(({
     if (!showBookingModal) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 modal-backdrop">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-4xl w-full max-h-[90vh] overflow-hidden modal-content">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -1805,8 +1794,8 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
     ];
 
     return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-4xl w-full my-4 sm:my-8">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto modal-backdrop">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-4xl w-full my-4 sm:my-8 modal-content">
                 {/* Header */}
                 <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-8">
                     <button
@@ -1857,6 +1846,38 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                     required
                                 />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Business Image</label>
+                                <div className="space-y-3">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onload = (e) => {
+                                                    setProviderData({ ...providerData, image: e.target.result });
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                    {providerData.image && (
+                                        <div className="mt-3">
+                                            <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                                            <img
+                                                src={providerData.image}
+                                                alt="Business preview"
+                                                className="w-32 h-24 object-cover rounded-lg border border-gray-200"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1">Upload a professional image of your business or work</p>
                             </div>
 
                             <div>
@@ -2437,7 +2458,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
     );
 });
 
-const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow, setSelectedProvider, setBookingData, setShowBookingModal }) => {
+const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow, setSelectedProvider, setBookingData, setShowBookingModal, setReviewData, setShowReviewModal }) => {
     const [activeTab, setActiveTab] = useState('overview');
 
     // Lock body scroll when modal is open
@@ -2454,11 +2475,11 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4 overflow-y-auto modal-backdrop"
             onClick={() => setShowModal(false)}
         >
             <div
-                className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-5xl w-full my-4 sm:my-8 max-h-[90vh] overflow-hidden flex flex-col relative"
+                className="bg-white rounded-2xl shadow-2xl max-w-md sm:max-w-3xl lg:max-w-5xl w-full my-4 sm:my-8 max-h-[90vh] overflow-hidden flex flex-col relative modal-content"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Close Button */}
@@ -2686,28 +2707,10 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                 </div>
 
                                 {/* Individual Reviews */}
-                                <div className="space-y-4">
-                                    {[
-                                        { name: 'Sarah M.', date: 'Oct 5, 2025', rating: 5, comment: 'Absolutely amazing service! My car looks brand new. Very professional and attention to detail was incredible.' },
-                                        { name: 'Mike R.', date: 'Oct 1, 2025', rating: 5, comment: 'Best detailing I\'ve ever had. Worth every penny. Will definitely use again!' },
-                                        { name: 'Jennifer L.', date: 'Sep 28, 2025', rating: 5, comment: 'Showed up on time, very friendly, and did an outstanding job. Highly recommend!' },
-                                        { name: 'David K.', date: 'Sep 20, 2025', rating: 4, comment: 'Great work overall. Very thorough interior cleaning. Would have given 5 stars but they were 15 minutes late.' }
-                                    ].map((review, idx) => (
-                                        <div key={idx} className="border border-gray-200 rounded-lg p-4">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <div className="font-bold text-gray-800">{review.name}</div>
-                                                    <div className="flex items-center gap-1 mt-1">
-                                                        {[...Array(review.rating)].map((_, i) => (
-                                                            <Star key={i} className="fill-yellow-400 text-yellow-400" size={14} />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                                <span className="text-sm text-gray-500">{review.date}</span>
-                                            </div>
-                                            <p className="text-gray-700">{review.comment}</p>
-                                        </div>
-                                    ))}
+                                <div className="text-center py-12">
+                                    <div className="text-6xl mb-4">⭐</div>
+                                    <h3 className="text-xl font-bold text-gray-800 mb-2">No Reviews Yet</h3>
+                                    <p className="text-gray-600">Be the first to review this provider!</p>
                                 </div>
                             </div>
                         </div>
@@ -2722,7 +2725,28 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                             <p className="text-2xl font-bold text-gray-800">${provider.startingPrice || 50}</p>
                         </div>
                         <div className="flex gap-3">
-                            <button className="px-6 py-3 border-2 border-cyan-500 text-cyan-600 hover:bg-cyan-50 rounded-lg font-bold transition-colors">
+                            <button
+                                onClick={() => {
+                                    if (provider.phone) {
+                                        // Check if it's a mobile device
+                                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                                        if (isMobile) {
+                                            // On mobile, try to open phone dialer
+                                            const cleanPhone = provider.phone.replace(/[^\d+]/g, '');
+                                            window.open(`tel:${cleanPhone}`, '_self');
+                                        } else {
+                                            // On desktop, show contact info
+                                            alert(`Contact Information:\n\nPhone: ${provider.phone}\nEmail: ${provider.email || 'Not available'}\n\nYou can copy the phone number to call manually.`);
+                                        }
+                                    } else if (provider.email) {
+                                        window.open(`mailto:${provider.email}`, '_self');
+                                    } else {
+                                        alert('Contact information not available');
+                                    }
+                                }}
+                                className="px-6 py-3 border-2 border-cyan-500 text-cyan-600 hover:bg-cyan-50 rounded-lg font-bold transition-colors"
+                            >
                                 Contact Provider
                             </button>
                             <button
@@ -3431,7 +3455,8 @@ const BRNNOMarketplace = () => {
         bankAccountHolder: '',
         backgroundCheck: false,
         skipPayment: false,
-        skipInsurance: false
+        skipInsurance: false,
+        image: ''
     });
     const [selectedProvider, setSelectedProvider] = useState(null);
     const [showProviderDetail, setShowProviderDetail] = useState(false);
@@ -3563,7 +3588,7 @@ const BRNNOMarketplace = () => {
                         description: `Professional mobile detailing service by ${data.businessName}`,
                         startingPrice: 120, // Default starting price
                         certified: data.backgroundCheck || false,
-                        image: "/BRNNO_logov3.jpg", // Use BRNNO logo as default
+                        image: data.image || "/BRNNO_logov3.jpg", // Use custom image or BRNNO logo as default
                         serviceArea: data.serviceArea || 'Local Area',
                         phone: data.phone || '',
                         email: data.email || '',
@@ -3948,6 +3973,7 @@ const BRNNOMarketplace = () => {
                     authMode={authMode}
                     setAuthMode={setAuthMode}
                     setShowSignupModal={setShowSignupModal}
+                    setShowProviderModal={setShowProviderModal}
                 />
                 <SignupModal
                     showSignupModal={showSignupModal}
@@ -3955,6 +3981,7 @@ const BRNNOMarketplace = () => {
                     authMode={authMode}
                     setAuthMode={setAuthMode}
                     setShowLoginModal={setShowLoginModal}
+                    setShowProviderModal={setShowProviderModal}
                 />
                 <ProfilePanel
                     showProfilePanel={showProfilePanel}
@@ -3994,6 +4021,8 @@ const BRNNOMarketplace = () => {
                         setSelectedProvider={setSelectedProvider}
                         setBookingData={setBookingData}
                         setShowBookingModal={setShowBookingModal}
+                        setReviewData={setReviewData}
+                        setShowReviewModal={setShowReviewModal}
                     />
                 )}
                 {showProviderDashboard && (
@@ -4010,7 +4039,7 @@ const BRNNOMarketplace = () => {
                 )}
 
                 {/* Navigation */}
-                <nav className="bg-white shadow-sm border-b border-gray-200">
+                <nav className="glass-header sticky top-0 z-40">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
                         <div className="flex items-center justify-between">
                             {/* Logo */}
@@ -4020,54 +4049,6 @@ const BRNNOMarketplace = () => {
                             </div>
 
                             {/* Desktop Menu */}
-                            <div className="hidden lg:flex items-center gap-6 text-sm">
-                                <button
-                                    onClick={() => {
-                                        // Check if user is authenticated and has provider role
-                                        if (auth.currentUser) {
-                                            // User is logged in, check their role
-                                            getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
-                                                if (userDoc.exists() && userDoc.data().accountType === 'provider') {
-                                                    setShowProviderDashboard(true);
-                                                } else {
-                                                    alert('Provider access required. Please sign up as a provider first.');
-                                                    setShowProviderModal(true);
-                                                }
-                                            }).catch(() => {
-                                                alert('Please sign in first to access provider dashboard.');
-                                                setShowLoginModal(true);
-                                            });
-                                        } else {
-                                            alert('Please sign in first to access provider dashboard.');
-                                            setShowLoginModal(true);
-                                        }
-                                    }}
-                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
-                                >
-                                    Provider Dashboard
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        // Check if user is authenticated
-                                        if (auth.currentUser) {
-                                            setShowProfilePanel(true);
-                                        } else {
-                                            alert('Please sign in first to access your profile.');
-                                            setShowLoginModal(true);
-                                        }
-                                    }}
-                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
-                                >
-                                    My Profile
-                                </button>
-                                <a href="#" className="text-gray-600 hover:text-cyan-500 transition-colors">Reviews</a>
-                                <button
-                                    onClick={() => setShowProviderModal(true)}
-                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
-                                >
-                                    Become a Provider
-                                </button>
-                            </div>
 
                             {/* Desktop Auth Buttons */}
                             <div className="hidden lg:flex items-center gap-3">
@@ -4192,18 +4173,6 @@ const BRNNOMarketplace = () => {
                                     >
                                         My Profile
                                     </button>
-                                    <a href="#" className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                        Reviews
-                                    </a>
-                                    <button
-                                        onClick={() => {
-                                            setShowProviderModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Become a Provider
-                                    </button>
                                     <div className="border-t border-gray-200 pt-3 mt-2">
                                         {user ? (
                                             // User is logged in - show user info and logout
@@ -4281,14 +4250,6 @@ const BRNNOMarketplace = () => {
                         <p className="text-base sm:text-xl text-cyan-50 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
                             Connect with trusted mobile detailers in your area. Book convenient appointments and get your vehicle detailed without leaving home.
                         </p>
-                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
-                            <button
-                                onClick={() => setShowProviderModal(true)}
-                                className="w-full sm:w-auto bg-cyan-700 hover:bg-cyan-800 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors border-2 border-white"
-                            >
-                                Become a Provider
-                            </button>
-                        </div>
                     </div>
                 </div>
 
