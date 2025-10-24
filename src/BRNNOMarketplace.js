@@ -3252,25 +3252,26 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                     <h3 className="text-xl font-bold text-gray-800 mb-4">Payment History</h3>
                                     <div className="space-y-3">
-                                        {[
-                                            { date: 'Oct 7, 2025', amount: 1250, status: 'Deposited', jobs: 8 },
-                                            { date: 'Sep 30, 2025', amount: 980, status: 'Deposited', jobs: 6 },
-                                            { date: 'Sep 23, 2025', amount: 1420, status: 'Deposited', jobs: 9 },
-                                            { date: 'Sep 16, 2025', amount: 760, status: 'Deposited', jobs: 5 }
-                                        ].map((payment, idx) => (
+                                        {realBookings.filter(booking => booking.paymentStatus === 'paid').length > 0 ? realBookings.filter(booking => booking.paymentStatus === 'paid').map((payment, idx) => (
                                             <div key={idx} className="flex items-center justify-between py-3 border-b border-gray-200 last:border-0">
                                                 <div>
-                                                    <p className="font-semibold text-gray-800">{payment.date}</p>
-                                                    <p className="text-sm text-gray-600">{payment.jobs} jobs completed</p>
+                                                    <p className="font-semibold text-gray-800">{new Date(payment.date).toLocaleDateString()}</p>
+                                                    <p className="text-sm text-gray-600">Service: {payment.service}</p>
                                                 </div>
                                                 <div className="text-right">
-                                                    <p className="text-xl font-bold text-green-600">${payment.amount}</p>
+                                                    <p className="text-xl font-bold text-green-600">${payment.providerAmount || payment.totalAmount}</p>
                                                     <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-semibold">
-                                                        {payment.status}
+                                                        Paid
                                                     </span>
                                                 </div>
                                             </div>
-                                        ))}
+                                        )) : (
+                                            <div className="text-center py-8">
+                                                <div className="text-4xl mb-2">💰</div>
+                                                <h3 className="text-lg font-bold text-gray-800 mb-1">No Payments Yet</h3>
+                                                <p className="text-gray-600">Your payment history will appear here</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -3307,29 +3308,31 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                 </div>
 
                                 <div className="space-y-4">
-                                    {[
-                                        { name: 'Sarah M.', date: 'Oct 5, 2025', rating: 5, comment: 'Absolutely amazing service! My car looks brand new. Very professional and attention to detail was incredible.' },
-                                        { name: 'Mike R.', date: 'Oct 1, 2025', rating: 5, comment: 'Best detailing I\'ve ever had. Worth every penny. Will definitely use again!' },
-                                        { name: 'Jennifer L.', date: 'Sep 28, 2025', rating: 5, comment: 'Showed up on time, very friendly, and did an outstanding job. Highly recommend!' }
-                                    ].map((review, idx) => (
+                                    {realBookings.filter(booking => booking.review).length > 0 ? realBookings.filter(booking => booking.review).map((review, idx) => (
                                         <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                             <div className="flex items-start justify-between mb-3">
                                                 <div>
-                                                    <div className="font-bold text-gray-800">{review.name}</div>
+                                                    <div className="font-bold text-gray-800">{review.customer}</div>
                                                     <div className="flex items-center gap-1 mt-1">
-                                                        {[...Array(review.rating)].map((_, i) => (
+                                                        {[...Array(review.review?.rating || 5)].map((_, i) => (
                                                             <Star key={i} className="fill-yellow-400 text-yellow-400" size={14} />
                                                         ))}
                                                     </div>
                                                 </div>
-                                                <span className="text-sm text-gray-500">{review.date}</span>
+                                                <span className="text-sm text-gray-500">{new Date(review.date).toLocaleDateString()}</span>
                                             </div>
-                                            <p className="text-gray-700">{review.comment}</p>
+                                            <p className="text-gray-700">{review.review?.comment || 'No comment provided'}</p>
                                             <button className="mt-3 text-cyan-600 hover:text-cyan-700 font-semibold text-sm">
                                                 Reply to Review
                                             </button>
                                         </div>
-                                    ))}
+                                    )) : (
+                                        <div className="text-center py-12">
+                                            <div className="text-6xl mb-4">⭐</div>
+                                            <h3 className="text-xl font-bold text-gray-800 mb-2">No Reviews Yet</h3>
+                                            <p className="text-gray-600">Customer reviews will appear here</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
