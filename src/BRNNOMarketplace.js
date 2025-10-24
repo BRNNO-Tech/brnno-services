@@ -2732,7 +2732,16 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                             <button
                                 onClick={() => {
                                     setShowModal(false);
-                                    // Open booking modal
+                                    setSelectedProvider(provider);
+                                    setBookingData(prev => ({
+                                        ...prev,
+                                        service: {
+                                            name: provider.name || provider.businessName,
+                                            price: provider.startingPrice || 120,
+                                            provider: provider.businessName || provider.name
+                                        }
+                                    }));
+                                    setShowBookingModal(true);
                                 }}
                                 className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-bold transition-colors"
                             >
