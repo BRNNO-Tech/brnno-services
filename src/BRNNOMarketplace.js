@@ -2722,6 +2722,15 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                             </button>
                             <button
                                 onClick={() => {
+                                    setReviewData(prev => ({ ...prev, providerId: provider.id }));
+                                    setShowReviewModal(true);
+                                }}
+                                className="px-6 py-3 border-2 border-cyan-500 text-cyan-600 hover:bg-cyan-50 rounded-lg font-bold transition-colors"
+                            >
+                                Write Review
+                            </button>
+                            <button
+                                onClick={() => {
                                     setShowModal(false);
                                     // Open booking modal
                                 }}
@@ -3408,6 +3417,12 @@ const BRNNOMarketplace = () => {
     const [showProviderDetail, setShowProviderDetail] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showProviderDashboard, setShowProviderDashboard] = useState(false);
+    const [showReviewModal, setShowReviewModal] = useState(false);
+    const [reviewData, setReviewData] = useState({
+        rating: 5,
+        comment: '',
+        providerId: null
+    });
     const [dashboardTab, setDashboardTab] = useState('overview'); // overview, bookings, services, calendar, earnings, reviews, profile
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -3572,6 +3587,95 @@ const BRNNOMarketplace = () => {
                 ? prev.filter(f => f !== filter)
                 : [...prev, filter]
         );
+    };
+
+    // Submit a review
+    const handleSubmitReview = async () => {
+        if (!auth.currentUser) {
+            alert('Please sign in to submit a review.');
+            return;
+        }
+
+        if (!reviewData.comment.trim()) {
+            alert('Please write a review comment.');
+            return;
+        }
+
+        try {
+            const review = {
+                providerId: reviewData.providerId,
+                customerId: auth.currentUser.uid,
+                customerName: userData?.firstName ? `${userData.firstName} ${userData.lastName}` : 'Anonymous',
+                rating: reviewData.rating,
+                comment: reviewData.comment.trim(),
+                createdAt: serverTimestamp(),
+                verified: false // Could be set to true if verified through booking system
+            };
+
+            // Save review to Firebase
+            await addDoc(collection(db, 'reviews'), review);
+            
+            // Update provider's average rating
+            await updateProviderRating(reviewData.providerId);
+            
+            alert('Review submitted successfully! Thank you for your feedback.');
+            setShowReviewModal(false);
+            setReviewData({ rating: 5, comment: '', providerId: null });
+            
+        } catch (error) {
+            console.error('Error submitting review:', error);
+            alert('Failed to submit review. Please try again.');
+        }
+    };
+
+    // Update provider's average rating
+    const updateProviderRating = async (providerId) => {
+        try {
+            // Get all reviews for this provider
+            const reviewsQuery = query(
+                collection(db, 'reviews'),
+                where('providerId', '==', providerId)
+            );
+            const reviewsSnapshot = await getDocs(reviewsQuery);
+            
+            let totalRating = 0;
+            let reviewCount = 0;
+            
+            reviewsSnapshot.forEach(doc => {
+                const data = doc.data();
+                totalRating += data.rating;
+                reviewCount++;
+            });
+            
+            const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
+            
+            // Update provider document
+            await updateDoc(doc(db, 'providers', providerId), {
+                rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
+                reviewCount: reviewCount
+            });
+            
+            // Also update user document if they have provider info
+            const userQuery = query(
+                collection(db, 'users'),
+                where('accountType', '==', 'provider'),
+                where('businessName', '!=', null)
+            );
+            const userSnapshot = await getDocs(userQuery);
+            
+            userSnapshot.forEach(async (userDoc) => {
+                const userData = userDoc.data();
+                if (userData.businessName) {
+                    await updateDoc(doc(db, 'users', userDoc.id), {
+                        rating: Math.round(averageRating * 10) / 10,
+                        reviewCount: reviewCount
+                    });
+                }
+            });
+            
+        } catch (error) {
+            console.error('Error updating provider rating:', error);
+        }
     };
 
     // Initialize Google Maps API
@@ -4193,6 +4297,70 @@ const BRNNOMarketplace = () => {
                     </p>
                 </div>
             </footer>
+
+            {/* Review Modal */}
+            {showReviewModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Write a Review</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
+                                <div className="flex gap-1">
+                                    {[1, 2, 3, 4, 5].map(star => (
+                                        <button
+                                            key={star}
+                                            onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                                            className="text-2xl"
+                                        >
+                                            <Star 
+                                                className={star <= reviewData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} 
+                                                size={32} 
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {reviewData.rating === 1 ? 'Poor' : 
+                                     reviewData.rating === 2 ? 'Fair' : 
+                                     reviewData.rating === 3 ? 'Good' : 
+                                     reviewData.rating === 4 ? 'Very Good' : 'Excellent'}
+                                </p>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Your Review</label>
+                                <textarea
+                                    value={reviewData.comment}
+                                    onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                                    placeholder="Tell others about your experience..."
+                                    rows={4}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowReviewModal(false);
+                                    setReviewData({ rating: 5, comment: '', providerId: null });
+                                }}
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleSubmitReview}
+                                className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
+                            >
+                                Submit Review
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
