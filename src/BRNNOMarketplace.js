@@ -1,6 +1,5 @@
 import React, { useState, memo, useCallback } from 'react';
 import { Star, MapPin, Shield, Clock, DollarSign, CheckCircle, Lock, Car, Camera, Award } from 'lucide-react';
-import { addToWaitlist, addToWaitlistWithReferral } from './firebaseService';
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, where, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from './firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
@@ -10,7 +9,6 @@ const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
     console.log('AdminDashboard rendered, showDashboard:', showDashboard);
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [waitlistData, setWaitlistData] = useState([]);
 
     React.useEffect(() => {
         const fetchAnalytics = async () => {
@@ -18,86 +16,15 @@ const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
                 console.log('Fetching analytics...');
                 console.log('Firebase db:', db);
 
-                // Get all waitlist data - try simple query first
-                let waitlistSnapshot;
-                try {
-                    const waitlistQuery = query(collection(db, 'waitlist'), orderBy('timestamp', 'desc'));
-                    console.log('Query created:', waitlistQuery);
-                    waitlistSnapshot = await getDocs(waitlistQuery);
-                } catch (orderError) {
-                    console.log('Order by failed, trying simple query:', orderError.message);
-                    // Fallback to simple query without orderBy
-                    const simpleQuery = query(collection(db, 'waitlist'));
-                    waitlistSnapshot = await getDocs(simpleQuery);
-                }
-
-                console.log('Snapshot received:', waitlistSnapshot);
-                console.log('Snapshot size:', waitlistSnapshot.size);
-
-                const totalCount = waitlistSnapshot.size;
-
-                // Get recent signups (last 24 hours) - simplified
-                let recentSignups = 0;
-                try {
-                    const yesterday = new Date();
-                    yesterday.setDate(yesterday.getDate() - 1);
-                    const recentQuery = query(
-                        collection(db, 'waitlist'),
-                        where('timestamp', '>=', yesterday)
-                    );
-                    const recentSnapshot = await getDocs(recentQuery);
-                    recentSignups = recentSnapshot.size;
-                } catch (recentError) {
-                    console.log('Recent signups query failed:', recentError.message);
-                    // Fallback: just use total count for now
-                    recentSignups = Math.floor(totalCount * 0.1); // Estimate 10% as recent
-                }
-
-                // Process data for analytics
-                const byCity = {};
-                const byService = {};
-                const byUrgency = {};
-                const byVehicleType = {};
-                const allData = [];
-
-                waitlistSnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    allData.push({
-                        id: doc.id,
-                        ...data,
-                        timestamp: data.timestamp?.toDate?.() || new Date()
-                    });
-
-                    // Count by city
-                    const city = data.city || 'Unknown';
-                    byCity[city] = (byCity[city] || 0) + 1;
-
-                    // Count by services
-                    if (data.servicesInterested) {
-                        data.servicesInterested.forEach(service => {
-                            byService[service] = (byService[service] || 0) + 1;
-                        });
-                    }
-
-                    // Count by urgency
-                    const urgency = data.howSoon || 'Unknown';
-                    byUrgency[urgency] = (byUrgency[urgency] || 0) + 1;
-
-                    // Count by vehicle type
-                    const vehicleType = data.vehicleType || 'Unknown';
-                    byVehicleType[vehicleType] = (byVehicleType[vehicleType] || 0) + 1;
-                });
-
+                // Set basic analytics without waitlist data
                 setAnalytics({
-                    totalCount,
-                    recentSignups,
-                    byCity,
-                    byService,
-                    byUrgency,
-                    byVehicleType
+                    totalCount: 0,
+                    recentSignups: 0,
+                    byCity: {},
+                    byService: {},
+                    byUrgency: {},
+                    byVehicleType: {}
                 });
-
-                setWaitlistData(allData);
                 console.log('Analytics loaded:', { totalCount, recentSignups });
             } catch (error) {
                 console.error('Error fetching analytics:', error);
@@ -204,50 +131,6 @@ const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
                         </div>
                     </div>
 
-                    {/* Waitlist Data Table */}
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Recent Waitlist Signups</h3>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-gray-200">
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Name</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Email</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">City</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Phone</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Vehicle</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Services</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Urgency</th>
-                                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {waitlistData.slice(0, 20).map((signup) => (
-                                        <tr key={signup.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                            <td className="py-3 px-4 text-gray-800 font-medium">{signup.name || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600">{signup.email || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600">{signup.city || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600">{signup.phone || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600 capitalize">{signup.vehicleType?.replace('_', ' ') || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-600">
-                                                {signup.servicesInterested?.slice(0, 2).join(', ') || 'N/A'}
-                                                {signup.servicesInterested?.length > 2 && '...'}
-                                            </td>
-                                            <td className="py-3 px-4 text-gray-600 capitalize">{signup.howSoon?.replace('_', ' ') || 'N/A'}</td>
-                                            <td className="py-3 px-4 text-gray-500 text-xs">
-                                                {signup.timestamp?.toLocaleDateString() || 'N/A'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        {waitlistData.length > 20 && (
-                            <p className="text-sm text-gray-500 mt-4 text-center">
-                                Showing first 20 of {waitlistData.length} signups
-                            </p>
-                        )}
-                    </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                         {/* Cities */}
@@ -1745,7 +1628,7 @@ const BookingModal = memo(({
 
 const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, setProviderStep, providerData, setProviderData }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    
+
     // Lock body scroll when modal is open
     React.useEffect(() => {
         if (showModal) {
@@ -2008,20 +1891,54 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                             </div>
 
                             <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Business Insurance *</label>
-                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer">
-                                    <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
-                                    <label htmlFor="insurance-upload" className="cursor-pointer">
-                                        <div className="text-cyan-600 mb-2">
-                                            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                            </svg>
-                                        </div>
-                                        <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
-                                        <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                                    </label>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Business Insurance (Optional)</label>
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                    <h4 className="font-bold text-yellow-900 mb-2">⚠️ Insurance Note</h4>
+                                    <p className="text-sm text-yellow-800">
+                                        Insurance will be required before accepting bookings, but you can upload it later in your provider dashboard.
+                                    </p>
                                 </div>
-                                <p className="text-xs text-gray-500 mt-2">Required: General liability insurance with minimum $1M coverage</p>
+                                
+                                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                    <div className="flex items-start gap-3">
+                                        <input 
+                                            type="checkbox" 
+                                            id="skip-insurance"
+                                            className="mt-1"
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setProviderData({ ...providerData, skipInsurance: true });
+                                                } else {
+                                                    setProviderData({ ...providerData, skipInsurance: false });
+                                                }
+                                            }}
+                                        />
+                                        <div>
+                                            <label htmlFor="skip-insurance" className="font-semibold text-gray-800">
+                                                Skip insurance upload for now
+                                            </label>
+                                            <p className="text-sm text-gray-600 mt-1">
+                                                I'll upload my insurance certificate later in my provider dashboard
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {!providerData.skipInsurance && (
+                                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer mt-4">
+                                        <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
+                                        <label htmlFor="insurance-upload" className="cursor-pointer">
+                                            <div className="text-cyan-600 mb-2">
+                                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                            </div>
+                                            <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
+                                            <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                                        </label>
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-500 mt-2">Recommended: General liability insurance with minimum $1M coverage</p>
                             </div>
 
                             <div>
@@ -2054,74 +1971,92 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                         </div>
                     )}
 
-                    {/* Step 4: Payment Information */}
+                    {/* Step 4: Payment Information (Optional) */}
                     {providerStep === 4 && (
                         <div className="space-y-6">
                             <div>
-                                <h3 className="text-2xl font-bold text-gray-800 mb-2">Payment Information</h3>
-                                <p className="text-gray-600 mb-6">Where should we send your earnings?</p>
+                                <h3 className="text-2xl font-bold text-gray-800 mb-2">Payment Setup (Optional)</h3>
+                                <p className="text-gray-600 mb-6">You can set up payment information now or later in your dashboard</p>
                             </div>
 
-                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <h4 className="font-bold text-green-900 mb-2">💰 How You Get Paid</h4>
-                                <ul className="text-sm text-green-800 space-y-1">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <h4 className="font-bold text-blue-900 mb-2">💡 Payment Setup</h4>
+                                <ul className="text-sm text-blue-800 space-y-1">
+                                    <li>• You can skip this step and set up payment later</li>
+                                    <li>• Payment setup will be required before accepting bookings</li>
                                     <li>• Payments processed through Stripe</li>
-                                    <li>• Automatic weekly deposits to your bank account</li>
-                                    <li>• Track earnings in your provider dashboard</li>
                                     <li>• BRNNO platform fee: 15% (10% for founding providers)</li>
                                 </ul>
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name *</label>
-                                <input
-                                    type="text"
-                                    placeholder="John Doe or Elite Auto Spa LLC"
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number *</label>
-                                <input
-                                    type="text"
-                                    placeholder="123456789"
-                                    value={providerData.routingNumber}
-                                    onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Account Number *</label>
-                                <input
-                                    type="text"
-                                    placeholder="Account number"
-                                    value={providerData.bankAccount}
-                                    onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-2">Confirm Account Number *</label>
-                                <input
-                                    type="text"
-                                    placeholder="Re-enter account number"
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    required
-                                />
-                            </div>
-
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-xs text-gray-600">
-                                    🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
-                                    and never stores your full account details on our servers.
-                                </p>
+                                <div className="flex items-start gap-3">
+                                    <input 
+                                        type="checkbox" 
+                                        id="skip-payment"
+                                        className="mt-1"
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setProviderData({ ...providerData, skipPayment: true });
+                                            } else {
+                                                setProviderData({ ...providerData, skipPayment: false });
+                                            }
+                                        }}
+                                    />
+                                    <div>
+                                        <label htmlFor="skip-payment" className="font-semibold text-gray-800">
+                                            Skip payment setup for now
+                                        </label>
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            I'll set up payment information later in my provider dashboard
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
+
+                            {!providerData.skipPayment && (
+                                <>
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="John Doe or Elite Auto Spa LLC"
+                                            value={providerData.bankAccountHolder || ''}
+                                            onChange={(e) => setProviderData({ ...providerData, bankAccountHolder: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="123456789"
+                                            value={providerData.routingNumber}
+                                            onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-2">Account Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Account number"
+                                            value={providerData.bankAccount}
+                                            onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600">
+                                            🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
+                                            and never stores your full account details on our servers.
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
 
@@ -2171,7 +2106,18 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                                 {providerData.backgroundCheck ? '✓ Consented' : '✗ Not consented'}
                                             </span>
                                         </p>
-                                        <p><span className="text-gray-600">Insurance:</span> <span className="font-semibold">Pending upload</span></p>
+                                        <p>
+                                            <span className="text-gray-600">Insurance:</span> 
+                                            <span className="font-semibold ml-2">
+                                                {providerData.skipInsurance ? '⏳ Will upload later' : '📄 Ready to upload'}
+                                            </span>
+                                        </p>
+                                        <p>
+                                            <span className="text-gray-600">Payment Setup:</span> 
+                                            <span className="font-semibold ml-2">
+                                                {providerData.skipPayment ? '⏳ Will set up later' : '💰 Ready to configure'}
+                                            </span>
+                                        </p>
                                         <p><span className="text-gray-600">Certifications:</span> <span className="font-semibold">Optional</span></p>
                                     </div>
                                 </div>
@@ -2183,7 +2129,8 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     <li>1. We'll review your application within 2-3 business days</li>
                                     <li>2. Background check will be initiated (usually takes 3-5 days)</li>
                                     <li>3. Once approved, you'll receive onboarding instructions</li>
-                                    <li>4. Complete your profile and start accepting bookings!</li>
+                                    <li>4. Complete your profile and upload insurance/payment info</li>
+                                    <li>5. Start accepting bookings!</li>
                                 </ol>
                             </div>
 
@@ -2227,35 +2174,35 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                         <button
                             onClick={async () => {
                                 if (isSubmitting) return;
-                                
+
                                 setIsSubmitting(true);
                                 try {
                                     // Validate required fields
                                     const requiredFields = [
-                                        'businessName', 'businessType', 'ein', 'ownerName', 
-                                        'phone', 'email', 'serviceArea', 'routingNumber', 'bankAccount'
+                                        'businessName', 'businessType', 'ein', 'ownerName',
+                                        'phone', 'email', 'serviceArea'
                                     ];
-                                    
+
                                     const missingFields = requiredFields.filter(field => !providerData[field] || providerData[field].trim() === '');
-                                    
+
                                     if (missingFields.length > 0) {
                                         alert(`Please fill in all required fields: ${missingFields.join(', ')}`);
                                         setIsSubmitting(false);
                                         return;
                                     }
-                                    
+
                                     if (providerData.services.length < 3) {
                                         alert('Please select at least 3 services you offer.');
                                         setIsSubmitting(false);
                                         return;
                                     }
-                                    
+
                                     if (!providerData.backgroundCheck) {
                                         alert('You must consent to a background check to join BRNNO.');
                                         setIsSubmitting(false);
                                         return;
                                     }
-                                    
+
                                     if (!auth.currentUser) {
                                         alert('You must be signed in to submit an application. Please sign in and try again.');
                                         setIsSubmitting(false);
@@ -2301,7 +2248,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
-                                    
+
                                     // More specific error messages
                                     if (error.code === 'permission-denied') {
                                         alert('Permission denied. Please make sure you are signed in and try again.');
@@ -2317,11 +2264,10 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                 }
                             }}
                             disabled={isSubmitting}
-                            className={`ml-auto px-8 py-3 text-white rounded-lg font-bold transition-colors flex items-center gap-2 ${
-                                isSubmitting 
-                                    ? 'bg-gray-400 cursor-not-allowed' 
+                            className={`ml-auto px-8 py-3 text-white rounded-lg font-bold transition-colors flex items-center gap-2 ${isSubmitting
+                                    ? 'bg-gray-400 cursor-not-allowed'
                                     : 'bg-green-600 hover:bg-green-700'
-                            }`}
+                                }`}
                         >
                             {isSubmitting ? (
                                 <>
@@ -2636,7 +2582,7 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                             <button
                                 onClick={() => {
                                     setShowModal(false);
-                                    // Open waitlist instead of booking
+                                    // Open booking modal
                                 }}
                                 className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-bold transition-colors"
                             >
@@ -2939,8 +2885,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                                                 {booking.date}
                                                             </span>
                                                             <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${booking.paymentStatus === 'paid' ? 'bg-green-100 text-green-700' :
-                                                                    booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                                                                        'bg-red-100 text-red-700'
+                                                                booking.paymentStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                                                    'bg-red-100 text-red-700'
                                                                 }`}>
                                                                 {booking.paymentStatus === 'paid' ? '💰 Paid' :
                                                                     booking.paymentStatus === 'pending' ? '⏳ Pending' : '❌ Failed'}
@@ -3265,323 +3211,6 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
     );
 });
 
-const WaitlistModal = memo(({ showModal, setShowModal, waitlistCount }) => {
-    const [step, setStep] = useState(1); // 1 = form, 2 = thank you
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: '',
-        city: '',
-        zipCode: '',
-        vehicleType: '',
-        servicesInterested: [],
-        howSoon: ''
-    });
-
-    React.useEffect(() => {
-        if (showModal) {
-            document.body.style.overflow = 'hidden';
-        }
-        return () => {
-            document.body.style.overflow = 'unset';
-        };
-    }, [showModal]);
-
-    if (!showModal) return null;
-
-    const utahCities = [
-        'Salt Lake City', 'West Valley City', 'Provo', 'West Jordan', 'Orem',
-        'Sandy', 'Ogden', 'St. George', 'Layton', 'Taylorsville', 'South Jordan',
-        'Lehi', 'Logan', 'Murray', 'Draper', 'Bountiful', 'Riverton', 'Roy',
-        'Spanish Fork', 'Pleasant Grove', 'Kearns', 'Cottonwood Heights',
-        'Springville', 'Eagle Mountain', 'Saratoga Springs', 'Other'
-    ];
-
-    const serviceOptions = [
-        'Basic Wash & Vacuum',
-        'Interior Detailing',
-        'Exterior Detailing',
-        'Full Detail',
-        'Paint Correction',
-        'Ceramic Coating',
-        'Not sure yet'
-    ];
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-
-        try {
-            // Check if there's a referral code in the URL
-            const urlParams = new URLSearchParams(window.location.search);
-            const referralCode = urlParams.get('ref');
-
-            // Save to Firestore
-            const docRef = await addDoc(collection(db, 'waitlist'), {
-                ...formData,
-                timestamp: serverTimestamp(),
-                status: 'pending',
-                referralCode: formData.email.split('@')[0] + Math.random().toString(36).substring(2, 6),
-                referredBy: referralCode || null,
-                referralCount: 0
-            });
-
-            console.log('Waitlist signup saved with ID:', docRef.id);
-            setStep(2);
-
-        } catch (error) {
-            console.error('Waitlist signup error:', error);
-            setError('Something went wrong. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const closeModal = () => {
-        setShowModal(false);
-        setStep(1);
-        setFormData({
-            name: '',
-            email: '',
-            phone: '',
-            city: '',
-            zipCode: '',
-            vehicleType: '',
-            servicesInterested: [],
-            howSoon: ''
-        });
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-
-                {step === 1 ? (
-                    <>
-                        {/* Header */}
-                        <div className="bg-gradient-to-r from-orange-500 to-pink-500 text-white p-6 sm:p-8">
-                            <button
-                                onClick={closeModal}
-                                className="float-right text-white hover:bg-white/20 p-2 rounded-lg transition-colors text-2xl"
-                            >
-                                ✕
-                            </button>
-                            <h2 className="text-3xl font-bold mb-2">Join the Waitlist</h2>
-                            <p className="text-white/90">Be the first to know when BRNNO launches in your area!</p>
-                            <div className="mt-4 bg-white/20 backdrop-blur-sm rounded-lg px-4 py-3 inline-block">
-                                <span className="font-bold text-lg">{waitlistCount}+ Utahns</span>
-                                <span className="text-white/90 ml-2">already waiting</span>
-                            </div>
-                        </div>
-
-                        {/* Form */}
-                        <form onSubmit={handleSubmit} className="p-6 sm:p-8 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 200px)' }}>
-                            {error && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                                    <p className="text-red-800 text-sm">{error}</p>
-                                </div>
-                            )}
-                            <div className="space-y-4">
-
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Full Name *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        placeholder="John Doe"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Email *</label>
-                                        <input
-                                            type="email"
-                                            required
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            placeholder="john@email.com"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Phone *</label>
-                                        <input
-                                            type="tel"
-                                            required
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            placeholder="(555) 123-4567"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">City in Utah *</label>
-                                        <select
-                                            required
-                                            value={formData.city}
-                                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                        >
-                                            <option value="">Select city</option>
-                                            {utahCities.map(city => (
-                                                <option key={city} value={city}>{city}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-2">Zip Code *</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={formData.zipCode}
-                                            onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-                                            placeholder="84043"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Vehicle Type *</label>
-                                    <select
-                                        required
-                                        value={formData.vehicleType}
-                                        onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                    >
-                                        <option value="">Select vehicle type</option>
-                                        <option value="sedan">Sedan/Coupe</option>
-                                        <option value="suv">SUV/Crossover</option>
-                                        <option value="truck">Truck</option>
-                                        <option value="van">Van/Minivan</option>
-                                        <option value="luxury">Luxury Vehicle</option>
-                                        <option value="sports">Sports Car</option>
-                                        <option value="rv">RV/Motorhome</option>
-                                        <option value="motorcycle">Motorcycle</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">Services You're Interested In *</label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {serviceOptions.map(service => (
-                                            <label
-                                                key={service}
-                                                className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg hover:border-orange-500 cursor-pointer transition-colors"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.servicesInterested.includes(service)}
-                                                    onChange={(e) => {
-                                                        if (e.target.checked) {
-                                                            setFormData({
-                                                                ...formData,
-                                                                servicesInterested: [...formData.servicesInterested, service]
-                                                            });
-                                                        } else {
-                                                            setFormData({
-                                                                ...formData,
-                                                                servicesInterested: formData.servicesInterested.filter(s => s !== service)
-                                                            });
-                                                        }
-                                                    }}
-                                                    className="rounded"
-                                                />
-                                                <span className="text-sm text-gray-700">{service}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-bold text-gray-700 mb-2">How soon would you book? *</label>
-                                    <select
-                                        required
-                                        value={formData.howSoon}
-                                        onChange={(e) => setFormData({ ...formData, howSoon: e.target.value })}
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                                    >
-                                        <option value="">Select timeframe</option>
-                                        <option value="asap">As soon as available</option>
-                                        <option value="week">Within a week</option>
-                                        <option value="month">Within a month</option>
-                                        <option value="flexible">Flexible / Just browsing</option>
-                                    </select>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="w-full bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 text-white font-bold py-4 rounded-lg transition-all text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    {loading ? (
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                            Adding to Waitlist...
-                                        </div>
-                                    ) : (
-                                        'Join the Waitlist'
-                                    )}
-                                </button>
-
-                                <p className="text-xs text-gray-600 text-center">
-                                    We'll notify you as soon as BRNNO launches in your area. No spam, promise! 🚀
-                                </p>
-                            </div>
-                        </form>
-                    </>
-                ) : (
-                    // Thank You Screen
-                    <div className="p-8 sm:p-12 text-center">
-                        <div className="text-6xl mb-6">🎉</div>
-                        <h2 className="text-3xl font-bold text-gray-800 mb-4">You're on the list!</h2>
-                        <p className="text-gray-600 mb-6">
-                            We'll notify you as soon as BRNNO launches in <strong>{formData.city}</strong>!
-                        </p>
-
-                        <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-6 mb-6">
-                            <h3 className="font-bold text-orange-900 mb-3">🚀 Move Up the List!</h3>
-                            <p className="text-sm text-orange-800 mb-4">
-                                Get priority access by referring friends. Share your unique link:
-                            </p>
-                            <div className="bg-white rounded-lg p-3 flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    readOnly
-                                    value={`brnno.com/waitlist?ref=${formData.email.split('@')[0]}`}
-                                    className="flex-1 text-sm text-gray-600 outline-none"
-                                />
-                                <button className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold text-sm transition-colors whitespace-nowrap">
-                                    Copy Link
-                                </button>
-                            </div>
-                            <p className="text-xs text-orange-700 mt-3">
-                                Refer 3 friends and get <strong>$25 off your first service!</strong>
-                            </p>
-                        </div>
-
-                        <button
-                            onClick={closeModal}
-                            className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-8 py-3 rounded-lg transition-colors"
-                        >
-                            Close
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-});
 
 const BRNNOMarketplace = () => {
     const [selectedArea, setSelectedArea] = useState('All Areas');
@@ -3617,15 +3246,16 @@ const BRNNOMarketplace = () => {
         portfolio: [],
         bankAccount: '',
         routingNumber: '',
-        backgroundCheck: false
+        bankAccountHolder: '',
+        backgroundCheck: false,
+        skipPayment: false,
+        skipInsurance: false
     });
     const [selectedProvider, setSelectedProvider] = useState(null);
     const [showProviderDetail, setShowProviderDetail] = useState(false);
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showProviderDashboard, setShowProviderDashboard] = useState(false);
     const [dashboardTab, setDashboardTab] = useState('overview'); // overview, bookings, services, calendar, earnings, reviews, profile
-    const [showWaitlistModal, setShowWaitlistModal] = useState(false);
-    const [waitlistCount, setWaitlistCount] = useState(523); // Mock number for now
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
 
@@ -3638,8 +3268,6 @@ const BRNNOMarketplace = () => {
     const [realProviders, setRealProviders] = useState([]);
     const [providersLoading, setProvidersLoading] = useState(true);
 
-    // Using mock waitlist count for public display
-    // Real count is only available in admin dashboard
 
     // Authentication state listener
     React.useEffect(() => {
@@ -3938,12 +3566,6 @@ const BRNNOMarketplace = () => {
                         >
                             View Details
                         </button>
-                        <button
-                            onClick={() => setShowWaitlistModal(true)}
-                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-xl font-semibold transition-colors"
-                        >
-                            Join Waitlist
-                        </button>
                     </div>
                 </div>
             </div>
@@ -3952,23 +3574,6 @@ const BRNNOMarketplace = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Waitlist Banner */}
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white py-3 px-4 sm:px-6 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-center">
-                    <span className="font-bold text-sm sm:text-base">
-                        🚀 Launching Across Utah Soon!
-                    </span>
-                    <span className="text-xs sm:text-sm text-white/90">
-                        Join {waitlistCount}+ Utahns on the waitlist
-                    </span>
-                    <button
-                        onClick={() => setShowWaitlistModal(true)}
-                        className="bg-white text-orange-600 hover:bg-orange-50 px-6 py-2 rounded-full font-bold text-sm transition-colors whitespace-nowrap"
-                    >
-                        Reserve Your Spot →
-                    </button>
-                </div>
-            </div>
             <LoginModal
                 showLoginModal={showLoginModal}
                 setShowLoginModal={setShowLoginModal}
@@ -4024,13 +3629,6 @@ const BRNNOMarketplace = () => {
                     setShowDashboard={setShowProviderDashboard}
                 />
             )}
-            {showWaitlistModal && (
-                <WaitlistModal
-                    showModal={showWaitlistModal}
-                    setShowModal={setShowWaitlistModal}
-                    waitlistCount={waitlistCount}
-                />
-            )}
             {showAdminDashboard && (
                 <AdminDashboard
                     showDashboard={showAdminDashboard}
@@ -4050,12 +3648,6 @@ const BRNNOMarketplace = () => {
 
                         {/* Desktop Menu */}
                         <div className="hidden lg:flex items-center gap-6 text-sm">
-                            <button
-                                onClick={() => setShowWaitlistModal(true)}
-                                className="text-gray-600 hover:text-cyan-500 transition-colors"
-                            >
-                                Join Waitlist
-                            </button>
                             <button
                                 onClick={() => {
                                     // Check if user is authenticated and has provider role
@@ -4182,15 +3774,6 @@ const BRNNOMarketplace = () => {
                     {showMobileMenu && (
                         <div className="lg:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
                             <div className="flex flex-col gap-3">
-                                <button
-                                    onClick={() => {
-                                        setShowWaitlistModal(true);
-                                        setShowMobileMenu(false);
-                                    }}
-                                    className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                >
-                                    Join Waitlist
-                                </button>
                                 <button
                                     onClick={() => {
                                         // Check if user is authenticated and has provider role
@@ -4326,12 +3909,6 @@ const BRNNOMarketplace = () => {
                         Connect with trusted mobile detailers in your area. Book convenient appointments and get your vehicle detailed without leaving home.
                     </p>
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
-                        <button
-                            onClick={() => setShowWaitlistModal(true)}
-                            className="w-full sm:w-auto bg-white text-cyan-600 hover:bg-cyan-50 px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors"
-                        >
-                            Join Waitlist
-                        </button>
                         <button
                             onClick={() => setShowProviderModal(true)}
                             className="w-full sm:w-auto bg-cyan-700 hover:bg-cyan-800 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors border-2 border-white"
