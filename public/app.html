@@ -10,7 +10,9 @@
     <script>
         // Set Google Maps API key for the application
         // Replace 'YOUR_ACTUAL_GOOGLE_MAPS_API_KEY_HERE' with your real API key
-        window.GOOGLE_MAPS_API_KEY = 'AIzaSyCT3Y9DeGWOz6fjJXFr6I1n2H0etTVRJ64';
+        // Google Maps API key should be set via environment variables
+        // For security, this should be configured in Vercel environment variables
+        window.GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || '';
     </script>
     <script src="/bundle.js"></script>
 </body>

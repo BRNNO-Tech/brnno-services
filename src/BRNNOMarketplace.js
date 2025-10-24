@@ -9,6 +9,7 @@ import { Elements, StripeProvider } from '@stripe/react-stripe-js';
 import stripePromise from './stripe';
 import paymentService from './paymentService';
 import StripeCardInput from './StripeCardInput';
+import config from './config';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -1164,7 +1165,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                                     >
                                         {loading ? 'Saving...' : 'Save Changes'}
-                                </button>
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setIsEditing(false);
@@ -1296,9 +1297,9 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                 className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
                             >
                                 {loading ? 'Updating...' : 'Update Password'}
-                    </button>
-                </div>
-            </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </>
@@ -1464,29 +1465,29 @@ const BookingModal = memo(({
                                 <div className="space-y-3 mb-6">
                                     {userVehicles.length > 0 ? (
                                         userVehicles.map(vehicle => (
-                                        <div
-                                            key={vehicle.id}
-                                            onClick={() => setBookingData({ ...bookingData, vehicle })}
-                                            className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
-                                                ? 'border-cyan-500 bg-cyan-50'
-                                                : 'border-gray-200 hover:border-cyan-300'
-                                                }`}
-                                        >
-                                            <div className="bg-cyan-100 p-3 rounded-lg">
-                                                <Car className="text-cyan-600" size={24} />
-                                            </div>
+                                            <div
+                                                key={vehicle.id}
+                                                onClick={() => setBookingData({ ...bookingData, vehicle })}
+                                                className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
+                                                    ? 'border-cyan-500 bg-cyan-50'
+                                                    : 'border-gray-200 hover:border-cyan-300'
+                                                    }`}
+                                            >
+                                                <div className="bg-cyan-100 p-3 rounded-lg">
+                                                    <Car className="text-cyan-600" size={24} />
+                                                </div>
                                                 <div className="flex-1">
-                                                <h4 className="font-bold text-gray-800">
-                                                    {vehicle.year} {vehicle.make} {vehicle.model}
-                                                </h4>
+                                                    <h4 className="font-bold text-gray-800">
+                                                        {vehicle.year} {vehicle.make} {vehicle.model}
+                                                    </h4>
                                                     {vehicle.color && (
                                                         <p className="text-sm text-gray-600">{vehicle.color}</p>
                                                     )}
                                                     {vehicle.licensePlate && (
                                                         <p className="text-xs text-gray-500">License: {vehicle.licensePlate}</p>
                                                     )}
+                                                </div>
                                             </div>
-                                        </div>
                                         ))
                                     ) : (
                                         <div className="text-center py-8 text-gray-500">
@@ -1550,16 +1551,16 @@ const BookingModal = memo(({
                             <div className="space-y-4">
                                 <StripeCardInput
                                     onCardChange={(event) => {
-                                        setBookingData(prev => ({ 
-                                            ...prev, 
+                                        setBookingData(prev => ({
+                                            ...prev,
                                             cardComplete: event.complete,
-                                            cardError: event.error 
+                                            cardError: event.error
                                         }));
                                     }}
                                     onCardError={(error) => {
-                                        setBookingData(prev => ({ 
-                                            ...prev, 
-                                            cardError: error 
+                                        setBookingData(prev => ({
+                                            ...prev,
+                                            cardError: error
                                         }));
                                     }}
                                 />
@@ -1717,21 +1718,21 @@ const BookingModal = memo(({
 
                                             // Process provider payout
                                             const payout = await paymentService.processProviderPayout(
-                                                bookingData.provider?.id, 
+                                                bookingData.provider?.id,
                                                 booking.providerAmount
                                             );
                                             console.log('Provider payout created:', payout.id);
 
                                         } catch (paymentError) {
                                             console.error('Payment processing failed:', paymentError);
-                                            
+
                                             // Update booking with failed payment
                                             await updateDoc(doc(db, 'bookings', docRef.id), {
                                                 paymentStatus: 'failed',
                                                 status: 'payment_failed',
                                                 paymentError: paymentError.message
                                             });
-                                            
+
                                             throw new Error('Payment processing failed: ' + paymentError.message);
                                         }
 
@@ -1746,7 +1747,7 @@ const BookingModal = memo(({
                                         console.log('Body: You have a new booking! Payment will be processed shortly.');
 
                                         alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
-                                    closeModal();
+                                        closeModal();
                                     } catch (error) {
                                         console.error('Error creating booking:', error);
                                         alert('Error creating booking. Please try again.');
@@ -2064,17 +2065,17 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                 {!providerData.skipInsurance && (
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer mt-4">
-                                    <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
-                                    <label htmlFor="insurance-upload" className="cursor-pointer">
-                                        <div className="text-cyan-600 mb-2">
-                                            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                            </svg>
-                                        </div>
-                                        <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
-                                        <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                                    </label>
-                                </div>
+                                        <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
+                                        <label htmlFor="insurance-upload" className="cursor-pointer">
+                                            <div className="text-cyan-600 mb-2">
+                                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                            </div>
+                                            <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
+                                            <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                                        </label>
+                                    </div>
                                 )}
                                 <p className="text-xs text-gray-500 mt-2">Recommended: General liability insurance with minimum $1M coverage</p>
                             </div>
@@ -2141,7 +2142,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             }
                                         }}
                                     />
-                            <div>
+                                    <div>
                                         <label htmlFor="skip-payment" className="font-semibold text-gray-800">
                                             Skip payment setup for now
                                         </label>
@@ -2156,43 +2157,43 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="John Doe or Elite Auto Spa LLC"
+                                        <input
+                                            type="text"
+                                            placeholder="John Doe or Elite Auto Spa LLC"
                                             value={providerData.bankAccountHolder || ''}
                                             onChange={(e) => setProviderData({ ...providerData, bankAccountHolder: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div>
+                                    <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number</label>
-                                <input
-                                    type="text"
-                                    placeholder="123456789"
-                                    value={providerData.routingNumber}
-                                    onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                        <input
+                                            type="text"
+                                            placeholder="123456789"
+                                            value={providerData.routingNumber}
+                                            onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div>
+                                    <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Account Number</label>
-                                <input
-                                    type="text"
-                                    placeholder="Account number"
-                                    value={providerData.bankAccount}
-                                    onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Account number"
+                                            value={providerData.bankAccount}
+                                            onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-xs text-gray-600">
-                                    🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
-                                    and never stores your full account details on our servers.
-                                </p>
-                            </div>
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600">
+                                            🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
+                                            and never stores your full account details on our servers.
+                                        </p>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -2396,7 +2397,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     }
 
                                     alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
-                                closeModal();
+                                    closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
 
@@ -3590,19 +3591,19 @@ const BRNNOMarketplace = () => {
 
         if (params.get('admin') === 'brnno2025') {
             if (user && userData && userData.role === 'admin') {
-                            console.log('Admin access granted');
-                            setShowAdminDashboard(true);
-                            setIsAdmin(true);
+                console.log('Admin access granted');
+                setShowAdminDashboard(true);
+                setIsAdmin(true);
             } else if (user && userData && userData.role !== 'admin') {
-                            console.log('Access denied - not admin');
-                            alert('Access denied. Admin privileges required.');
-                            setShowAdminDashboard(false);
-                            setIsAdmin(false);
+                console.log('Access denied - not admin');
+                alert('Access denied. Admin privileges required.');
+                setShowAdminDashboard(false);
+                setIsAdmin(false);
             } else if (!user) {
-                    console.log('User not logged in - showing login modal');
-                    alert('Please log in first to access admin dashboard');
-                    setShowLoginModal(true);
-                }
+                console.log('User not logged in - showing login modal');
+                alert('Please log in first to access admin dashboard');
+                setShowLoginModal(true);
+            }
         }
     }, [user, userData]);
 
@@ -3778,7 +3779,7 @@ const BRNNOMarketplace = () => {
         const initializeLocation = async () => {
             try {
                 // Try to get API key from window object or use fallback
-                const API_KEY = window.GOOGLE_MAPS_API_KEY || 'AIzaSyCT3Y9DeGWOz6fjJXFr6I1n2H0etTVRJ64';
+                const API_KEY = config.googleMapsApiKey;
 
                 if (!API_KEY) {
                     console.log('Google Maps API key not configured. Using fallback location service.');
@@ -3865,7 +3866,7 @@ const BRNNOMarketplace = () => {
     const filteredServices = services.filter(service => {
         // If "All Areas" is selected, show all providers
         if (selectedArea === 'All Areas') {
-        return true;
+            return true;
         }
 
         // If user has location and provider has coordinates, use distance-based filtering
@@ -3941,211 +3942,85 @@ const BRNNOMarketplace = () => {
     return (
         <Elements stripe={stripePromise}>
             <div className="min-h-screen bg-gray-50">
-            <LoginModal
-                showLoginModal={showLoginModal}
-                setShowLoginModal={setShowLoginModal}
-                authMode={authMode}
-                setAuthMode={setAuthMode}
-                setShowSignupModal={setShowSignupModal}
-            />
-            <SignupModal
-                showSignupModal={showSignupModal}
-                setShowSignupModal={setShowSignupModal}
-                authMode={authMode}
-                setAuthMode={setAuthMode}
-                setShowLoginModal={setShowLoginModal}
-            />
-            <ProfilePanel
-                showProfilePanel={showProfilePanel}
-                setShowProfilePanel={setShowProfilePanel}
-                profileTab={profileTab}
-                setProfileTab={setProfileTab}
-            />
-            <BookingModal
-                showBookingModal={showBookingModal}
-                setShowBookingModal={setShowBookingModal}
-                bookingStep={bookingStep}
-                setBookingStep={setBookingStep}
-                bookingData={bookingData}
-                setBookingData={setBookingData}
-                userVehicles={userVehicles}
-                setShowAddVehicle={setShowAddVehicle}
-            />
-            {showProviderModal && (
-                <ProviderApplicationModal
-                    showModal={showProviderModal}
-                    setShowModal={setShowProviderModal}
-                    providerStep={providerStep}
-                    setProviderStep={setProviderStep}
-                    providerData={providerData}
-                    setProviderData={setProviderData}
+                <LoginModal
+                    showLoginModal={showLoginModal}
+                    setShowLoginModal={setShowLoginModal}
+                    authMode={authMode}
+                    setAuthMode={setAuthMode}
+                    setShowSignupModal={setShowSignupModal}
                 />
-            )}
-            {showProviderDetail && (
-                <ProviderDetailModal
-                    provider={selectedProvider}
-                    showModal={showProviderDetail}
-                    setShowModal={setShowProviderDetail}
-                    onBookNow={() => {
-                        setBookingData(prev => ({ ...prev, provider: selectedProvider }));
-                        setShowBookingModal(true);
-                    }}
-                    setSelectedProvider={setSelectedProvider}
-                    setBookingData={setBookingData}
+                <SignupModal
+                    showSignupModal={showSignupModal}
+                    setShowSignupModal={setShowSignupModal}
+                    authMode={authMode}
+                    setAuthMode={setAuthMode}
+                    setShowLoginModal={setShowLoginModal}
+                />
+                <ProfilePanel
+                    showProfilePanel={showProfilePanel}
+                    setShowProfilePanel={setShowProfilePanel}
+                    profileTab={profileTab}
+                    setProfileTab={setProfileTab}
+                />
+                <BookingModal
+                    showBookingModal={showBookingModal}
                     setShowBookingModal={setShowBookingModal}
+                    bookingStep={bookingStep}
+                    setBookingStep={setBookingStep}
+                    bookingData={bookingData}
+                    setBookingData={setBookingData}
+                    userVehicles={userVehicles}
+                    setShowAddVehicle={setShowAddVehicle}
                 />
-            )}
-            {showProviderDashboard && (
-                <ProviderDashboard
-                    showDashboard={showProviderDashboard}
-                    setShowDashboard={setShowProviderDashboard}
-                />
-            )}
-            {showAdminDashboard && (
-                <AdminDashboard
-                    showDashboard={showAdminDashboard}
-                    setShowDashboard={setShowAdminDashboard}
-                />
-            )}
+                {showProviderModal && (
+                    <ProviderApplicationModal
+                        showModal={showProviderModal}
+                        setShowModal={setShowProviderModal}
+                        providerStep={providerStep}
+                        setProviderStep={setProviderStep}
+                        providerData={providerData}
+                        setProviderData={setProviderData}
+                    />
+                )}
+                {showProviderDetail && (
+                    <ProviderDetailModal
+                        provider={selectedProvider}
+                        showModal={showProviderDetail}
+                        setShowModal={setShowProviderDetail}
+                        onBookNow={() => {
+                            setBookingData(prev => ({ ...prev, provider: selectedProvider }));
+                            setShowBookingModal(true);
+                        }}
+                        setSelectedProvider={setSelectedProvider}
+                        setBookingData={setBookingData}
+                        setShowBookingModal={setShowBookingModal}
+                    />
+                )}
+                {showProviderDashboard && (
+                    <ProviderDashboard
+                        showDashboard={showProviderDashboard}
+                        setShowDashboard={setShowProviderDashboard}
+                    />
+                )}
+                {showAdminDashboard && (
+                    <AdminDashboard
+                        showDashboard={showAdminDashboard}
+                        setShowDashboard={setShowAdminDashboard}
+                    />
+                )}
 
-            {/* Navigation */}
-            <nav className="bg-white shadow-sm border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        {/* Logo */}
-                        <div className="flex items-center gap-2">
-                            <Car className="text-cyan-500" size={28} />
-                            <span className="text-xl font-bold text-gray-800">BRNNO Services</span>
-                        </div>
+                {/* Navigation */}
+                <nav className="bg-white shadow-sm border-b border-gray-200">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+                        <div className="flex items-center justify-between">
+                            {/* Logo */}
+                            <div className="flex items-center gap-2">
+                                <Car className="text-cyan-500" size={28} />
+                                <span className="text-xl font-bold text-gray-800">BRNNO Services</span>
+                            </div>
 
-                        {/* Desktop Menu */}
-                        <div className="hidden lg:flex items-center gap-6 text-sm">
-                            <button
-                                onClick={() => {
-                                    // Check if user is authenticated and has provider role
-                                    if (auth.currentUser) {
-                                        // User is logged in, check their role
-                                        getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
-                                            if (userDoc.exists() && userDoc.data().accountType === 'provider') {
-                                                setShowProviderDashboard(true);
-                                            } else {
-                                                alert('Provider access required. Please sign up as a provider first.');
-                                                setShowProviderModal(true);
-                                            }
-                                        }).catch(() => {
-                                            alert('Please sign in first to access provider dashboard.');
-                                            setShowLoginModal(true);
-                                        });
-                                    } else {
-                                        alert('Please sign in first to access provider dashboard.');
-                                        setShowLoginModal(true);
-                                    }
-                                }}
-                                className="text-gray-600 hover:text-cyan-500 transition-colors"
-                            >
-                                Provider Dashboard
-                            </button>
-                            <button
-                                onClick={() => {
-                                    // Check if user is authenticated
-                                    if (auth.currentUser) {
-                                        setShowProfilePanel(true);
-                                    } else {
-                                        alert('Please sign in first to access your profile.');
-                                        setShowLoginModal(true);
-                                    }
-                                }}
-                                className="text-gray-600 hover:text-cyan-500 transition-colors"
-                            >
-                                My Profile
-                            </button>
-                            <a href="#" className="text-gray-600 hover:text-cyan-500 transition-colors">Reviews</a>
-                            <button
-                                onClick={() => setShowProviderModal(true)}
-                                className="text-gray-600 hover:text-cyan-500 transition-colors"
-                            >
-                                Become a Provider
-                            </button>
-                        </div>
-
-                        {/* Desktop Auth Buttons */}
-                        <div className="hidden lg:flex items-center gap-3">
-                            {user ? (
-                                // User is logged in - show user info and logout
-                                <>
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right">
-                                            <p className="text-sm font-semibold text-gray-800">
-                                                {userData?.firstName && userData?.lastName
-                                                    ? `${userData.firstName} ${userData.lastName}`
-                                                    : user.displayName || 'User'
-                                                }
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                                {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setShowProfilePanel(true)}
-                                            className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-cyan-600 transition-colors"
-                                        >
-                                            {userData?.firstName && userData?.lastName
-                                                ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
-                                                : user.displayName?.charAt(0) || 'U'
-                                            }
-                                        </button>
-                                    </div>
-                                    <button
-                                        onClick={async () => {
-                                            try {
-                                                await signOut(auth);
-                                            } catch (error) {
-                                                console.error('Logout error:', error);
-                                            }
-                                        }}
-                                        className="text-gray-600 hover:text-red-500 px-4 py-2 rounded-lg transition-colors"
-                                    >
-                                        Logout
-                                    </button>
-                                </>
-                            ) : (
-                                // User is not logged in - show login/signup buttons
-                                <>
-                            <button
-                                onClick={() => setShowLoginModal(true)}
-                                className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Log In
-                            </button>
-                            <button
-                                onClick={() => setShowSignupModal(true)}
-                                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                            >
-                                Sign Up
-                            </button>
-                                </>
-                            )}
-                        </div>
-
-                        {/* Mobile Menu Button */}
-                        <button
-                            onClick={() => setShowMobileMenu(!showMobileMenu)}
-                            className="lg:hidden text-gray-600 hover:text-cyan-500 p-2"
-                        >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                {showMobileMenu ? (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                ) : (
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                                )}
-                            </svg>
-                        </button>
-                    </div>
-
-                    {/* Mobile Menu Dropdown */}
-                    {showMobileMenu && (
-                        <div className="lg:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
-                            <div className="flex flex-col gap-3">
+                            {/* Desktop Menu */}
+                            <div className="hidden lg:flex items-center gap-6 text-sm">
                                 <button
                                     onClick={() => {
                                         // Check if user is authenticated and has provider role
@@ -4154,24 +4029,20 @@ const BRNNOMarketplace = () => {
                                             getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
                                                 if (userDoc.exists() && userDoc.data().accountType === 'provider') {
                                                     setShowProviderDashboard(true);
-                                                    setShowMobileMenu(false);
                                                 } else {
                                                     alert('Provider access required. Please sign up as a provider first.');
                                                     setShowProviderModal(true);
-                                                    setShowMobileMenu(false);
                                                 }
                                             }).catch(() => {
                                                 alert('Please sign in first to access provider dashboard.');
                                                 setShowLoginModal(true);
-                                                setShowMobileMenu(false);
                                             });
                                         } else {
                                             alert('Please sign in first to access provider dashboard.');
                                             setShowLoginModal(true);
-                                            setShowMobileMenu(false);
                                         }
                                     }}
-                                    className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
                                 >
                                     Provider Dashboard
                                 </button>
@@ -4180,424 +4051,554 @@ const BRNNOMarketplace = () => {
                                         // Check if user is authenticated
                                         if (auth.currentUser) {
                                             setShowProfilePanel(true);
-                                            setShowMobileMenu(false);
                                         } else {
                                             alert('Please sign in first to access your profile.');
                                             setShowLoginModal(true);
-                                            setShowMobileMenu(false);
                                         }
                                     }}
-                                    className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
                                 >
                                     My Profile
                                 </button>
-                                <a href="#" className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
-                                    Reviews
-                                </a>
+                                <a href="#" className="text-gray-600 hover:text-cyan-500 transition-colors">Reviews</a>
                                 <button
-                                    onClick={() => {
-                                        setShowProviderModal(true);
-                                        setShowMobileMenu(false);
-                                    }}
-                                    className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    onClick={() => setShowProviderModal(true)}
+                                    className="text-gray-600 hover:text-cyan-500 transition-colors"
                                 >
                                     Become a Provider
                                 </button>
-                                <div className="border-t border-gray-200 pt-3 mt-2">
-                                    {user ? (
-                                        // User is logged in - show user info and logout
-                                        <>
-                                            <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-gray-50 rounded-lg">
-                                                <div className="w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                            </div>
+
+                            {/* Desktop Auth Buttons */}
+                            <div className="hidden lg:flex items-center gap-3">
+                                {user ? (
+                                    // User is logged in - show user info and logout
+                                    <>
+                                        <div className="flex items-center gap-3">
+                                            <div className="text-right">
+                                                <p className="text-sm font-semibold text-gray-800">
                                                     {userData?.firstName && userData?.lastName
-                                                        ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
-                                                        : user.displayName?.charAt(0) || 'U'
+                                                        ? `${userData.firstName} ${userData.lastName}`
+                                                        : user.displayName || 'User'
                                                     }
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="text-sm font-semibold text-gray-800">
-                                                        {userData?.firstName && userData?.lastName
-                                                            ? `${userData.firstName} ${userData.lastName}`
-                                                            : user.displayName || 'User'
-                                                        }
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
-                                                    </p>
-                                                </div>
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                    {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
+                                                </p>
                                             </div>
                                             <button
-                                                onClick={async () => {
-                                                    try {
-                                                        await signOut(auth);
-                                                        setShowMobileMenu(false);
-                                                    } catch (error) {
-                                                        console.error('Logout error:', error);
-                                                    }
-                                                }}
-                                                className="w-full text-left text-red-600 hover:text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                                                onClick={() => setShowProfilePanel(true)}
+                                                className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-cyan-600 transition-colors"
                                             >
-                                                Logout
+                                                {userData?.firstName && userData?.lastName
+                                                    ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
+                                                    : user.displayName?.charAt(0) || 'U'
+                                                }
                                             </button>
-                                        </>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    await signOut(auth);
+                                                } catch (error) {
+                                                    console.error('Logout error:', error);
+                                                }
+                                            }}
+                                            className="text-gray-600 hover:text-red-500 px-4 py-2 rounded-lg transition-colors"
+                                        >
+                                            Logout
+                                        </button>
+                                    </>
+                                ) : (
+                                    // User is not logged in - show login/signup buttons
+                                    <>
+                                        <button
+                                            onClick={() => setShowLoginModal(true)}
+                                            className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
+                                        >
+                                            Log In
+                                        </button>
+                                        <button
+                                            onClick={() => setShowSignupModal(true)}
+                                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                                        >
+                                            Sign Up
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Mobile Menu Button */}
+                            <button
+                                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                                className="lg:hidden text-gray-600 hover:text-cyan-500 p-2"
+                            >
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    {showMobileMenu ? (
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     ) : (
-                                        // User is not logged in - show login/signup buttons
-                                        <>
-                                    <button
-                                        onClick={() => {
-                                            setShowLoginModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Log In
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowSignupModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
-                                    >
-                                        Sign Up
-                                    </button>
-                                        </>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                                     )}
+                                </svg>
+                            </button>
+                        </div>
+
+                        {/* Mobile Menu Dropdown */}
+                        {showMobileMenu && (
+                            <div className="lg:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
+                                <div className="flex flex-col gap-3">
+                                    <button
+                                        onClick={() => {
+                                            // Check if user is authenticated and has provider role
+                                            if (auth.currentUser) {
+                                                // User is logged in, check their role
+                                                getDoc(doc(db, 'users', auth.currentUser.uid)).then(userDoc => {
+                                                    if (userDoc.exists() && userDoc.data().accountType === 'provider') {
+                                                        setShowProviderDashboard(true);
+                                                        setShowMobileMenu(false);
+                                                    } else {
+                                                        alert('Provider access required. Please sign up as a provider first.');
+                                                        setShowProviderModal(true);
+                                                        setShowMobileMenu(false);
+                                                    }
+                                                }).catch(() => {
+                                                    alert('Please sign in first to access provider dashboard.');
+                                                    setShowLoginModal(true);
+                                                    setShowMobileMenu(false);
+                                                });
+                                            } else {
+                                                alert('Please sign in first to access provider dashboard.');
+                                                setShowLoginModal(true);
+                                                setShowMobileMenu(false);
+                                            }
+                                        }}
+                                        className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Provider Dashboard
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            // Check if user is authenticated
+                                            if (auth.currentUser) {
+                                                setShowProfilePanel(true);
+                                                setShowMobileMenu(false);
+                                            } else {
+                                                alert('Please sign in first to access your profile.');
+                                                setShowLoginModal(true);
+                                                setShowMobileMenu(false);
+                                            }
+                                        }}
+                                        className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        My Profile
+                                    </button>
+                                    <a href="#" className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                                        Reviews
+                                    </a>
+                                    <button
+                                        onClick={() => {
+                                            setShowProviderModal(true);
+                                            setShowMobileMenu(false);
+                                        }}
+                                        className="text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Become a Provider
+                                    </button>
+                                    <div className="border-t border-gray-200 pt-3 mt-2">
+                                        {user ? (
+                                            // User is logged in - show user info and logout
+                                            <>
+                                                <div className="flex items-center gap-3 px-4 py-3 mb-3 bg-gray-50 rounded-lg">
+                                                    <div className="w-10 h-10 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                                                        {userData?.firstName && userData?.lastName
+                                                            ? `${userData.firstName.charAt(0)}${userData.lastName.charAt(0)}`
+                                                            : user.displayName?.charAt(0) || 'U'
+                                                        }
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-semibold text-gray-800">
+                                                            {userData?.firstName && userData?.lastName
+                                                                ? `${userData.firstName} ${userData.lastName}`
+                                                                : user.displayName || 'User'
+                                                            }
+                                                        </p>
+                                                        <p className="text-xs text-gray-500">
+                                                            {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={async () => {
+                                                        try {
+                                                            await signOut(auth);
+                                                            setShowMobileMenu(false);
+                                                        } catch (error) {
+                                                            console.error('Logout error:', error);
+                                                        }
+                                                    }}
+                                                    className="w-full text-left text-red-600 hover:text-red-500 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                                                >
+                                                    Logout
+                                                </button>
+                                            </>
+                                        ) : (
+                                            // User is not logged in - show login/signup buttons
+                                            <>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowLoginModal(true);
+                                                        setShowMobileMenu(false);
+                                                    }}
+                                                    className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                                >
+                                                    Log In
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setShowSignupModal(true);
+                                                        setShowMobileMenu(false);
+                                                    }}
+                                                    className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
+                                                >
+                                                    Sign Up
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                </div>
-            </nav>
+                        )}
+                    </div>
+                </nav>
 
-            {/* Hero Section */}
-            <div className="bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-600 text-white">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">
-                        Premium Mobile Auto<br className="hidden sm:block" />
-                        <span className="sm:inline"> </span>Detailing at Your Doorstep
-                    </h1>
-                    <p className="text-base sm:text-xl text-cyan-50 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
-                        Connect with trusted mobile detailers in your area. Book convenient appointments and get your vehicle detailed without leaving home.
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
-                        <button
-                            onClick={() => setShowProviderModal(true)}
-                            className="w-full sm:w-auto bg-cyan-700 hover:bg-cyan-800 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors border-2 border-white"
-                        >
-                            Become a Provider
-                        </button>
+                {/* Hero Section */}
+                <div className="bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-600 text-white">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-20 text-center">
+                        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 sm:mb-6">
+                            Premium Mobile Auto<br className="hidden sm:block" />
+                            <span className="sm:inline"> </span>Detailing at Your Doorstep
+                        </h1>
+                        <p className="text-base sm:text-xl text-cyan-50 mb-6 sm:mb-8 max-w-2xl mx-auto px-4">
+                            Connect with trusted mobile detailers in your area. Book convenient appointments and get your vehicle detailed without leaving home.
+                        </p>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
+                            <button
+                                onClick={() => setShowProviderModal(true)}
+                                className="w-full sm:w-auto bg-cyan-700 hover:bg-cyan-800 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-colors border-2 border-white"
+                            >
+                                Become a Provider
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Search & Filter Section */}
-            <div className="bg-white border-b border-gray-200">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Service Area</label>
-                            <div className="flex gap-2">
-                            <select
-                                value={selectedArea}
-                                onChange={(e) => setSelectedArea(e.target.value)}
-                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
-                            >
-                                <option>All Areas</option>
-                                    <option>Salt Lake City</option>
-                                    <option>Provo</option>
-                                    <option>Orem</option>
-                                    <option>West Valley City</option>
-                                    <option>West Jordan</option>
-                                    <option>Lehi</option>
-                                    <option>Ogden</option>
-                                    <option>Layton</option>
-                                    <option>Taylorsville</option>
-                                    <option>St. George</option>
-                                    <option>Local Area</option>
-                            </select>
-                                <button
-                                    onClick={getUserLocation}
-                                    disabled={locationLoading}
-                                    className="px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                {/* Search & Filter Section */}
+                <div className="bg-white border-b border-gray-200">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Service Area</label>
+                                <div className="flex gap-2">
+                                    <select
+                                        value={selectedArea}
+                                        onChange={(e) => setSelectedArea(e.target.value)}
+                                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
+                                    >
+                                        <option>All Areas</option>
+                                        <option>Salt Lake City</option>
+                                        <option>Provo</option>
+                                        <option>Orem</option>
+                                        <option>West Valley City</option>
+                                        <option>West Jordan</option>
+                                        <option>Lehi</option>
+                                        <option>Ogden</option>
+                                        <option>Layton</option>
+                                        <option>Taylorsville</option>
+                                        <option>St. George</option>
+                                        <option>Local Area</option>
+                                    </select>
+                                    <button
+                                        onClick={getUserLocation}
+                                        disabled={locationLoading}
+                                        className="px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                                    >
+                                        {locationLoading ? (
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                        ) : (
+                                            <MapPin className="w-4 h-4" />
+                                        )}
+                                        {locationLoading ? 'Finding...' : 'My Location'}
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Service Type</label>
+                                <select
+                                    value={selectedType}
+                                    onChange={(e) => setSelectedType(e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
                                 >
-                                    {locationLoading ? (
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    ) : (
-                                        <MapPin className="w-4 h-4" />
-                                    )}
-                                    {locationLoading ? 'Finding...' : 'My Location'}
-                                </button>
+                                    <option>All Types</option>
+                                    <option>Interior Only</option>
+                                    <option>Exterior Only</option>
+                                    <option>Full Detail</option>
+                                    <option>Paint Correction</option>
+                                    <option>Ceramic Coating</option>
+                                </select>
+                            </div>
+                            <div className="sm:col-span-2 lg:col-span-1">
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
+                                <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base">
+                                    <option>Highest Rating</option>
+                                    <option>Most Reviews</option>
+                                    <option>Price: Low to High</option>
+                                    <option>Price: High to Low</option>
+                                    <option>Nearest</option>
+                                </select>
                             </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Service Type</label>
-                            <select
-                                value={selectedType}
-                                onChange={(e) => setSelectedType(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
-                            >
-                                <option>All Types</option>
-                                <option>Interior Only</option>
-                                <option>Exterior Only</option>
-                                <option>Full Detail</option>
-                                <option>Paint Correction</option>
-                                <option>Ceramic Coating</option>
-                            </select>
-                        </div>
-                        <div className="sm:col-span-2 lg:col-span-1">
-                            <label className="block text-sm font-semibold text-gray-700 mb-2">Sort By</label>
-                            <select className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base">
-                                <option>Highest Rating</option>
-                                <option>Most Reviews</option>
-                                <option>Price: Low to High</option>
-                                <option>Price: High to Low</option>
-                                <option>Nearest</option>
-                            </select>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-700 w-full sm:w-auto mb-2 sm:mb-0">Quick Filters:</span>
+                            {['Mobile', 'Certified', 'Same Day', 'Top Rated'].map(filter => (
+                                <button
+                                    key={filter}
+                                    onClick={() => toggleFilter(filter)}
+                                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeFilters.includes(filter)
+                                        ? 'bg-cyan-500 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    {filter}
+                                </button>
+                            ))}
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-gray-700 w-full sm:w-auto mb-2 sm:mb-0">Quick Filters:</span>
-                        {['Mobile', 'Certified', 'Same Day', 'Top Rated'].map(filter => (
-                            <button
-                                key={filter}
-                                onClick={() => toggleFilter(filter)}
-                                className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${activeFilters.includes(filter)
-                                    ? 'bg-cyan-500 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                            >
-                                {filter}
-                            </button>
+                {/* Services Section */}
+                <div id="services-section" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                    <div className="mb-6 sm:mb-8">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Available Detailing Services</h2>
+                        <p className="text-sm sm:text-base text-gray-600">
+                            Browse through our network of professional mobile detailers and find the perfect service for your vehicle
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {filteredServices.map(service => (
+                            <ServiceCard key={service.id} service={service} />
                         ))}
                     </div>
                 </div>
-            </div>
 
-            {/* Services Section */}
-            <div id="services-section" className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-                <div className="mb-6 sm:mb-8">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">Available Detailing Services</h2>
-                    <p className="text-sm sm:text-base text-gray-600">
-                        Browse through our network of professional mobile detailers and find the perfect service for your vehicle
-                    </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {filteredServices.map(service => (
-                        <ServiceCard key={service.id} service={service} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Why Choose Section */}
-            <div className="bg-gradient-to-r from-gray-50 to-cyan-50 py-12 sm:py-16">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-8 sm:mb-12">
-                        Why Choose BRNNO
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-                        <div className="text-center">
-                            <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <MapPin className="text-white" size={32} />
-                            </div>
-                            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Come to You</h3>
-                            <p className="text-sm sm:text-base text-gray-600 px-4">
-                                Professional detailers arrive at your location, saving you time and hassle
-                            </p>
-                        </div>
-                        <div className="text-center">
-                            <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Shield className="text-white" size={32} />
-                            </div>
-                            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Verified Professionals</h3>
-                            <p className="text-sm sm:text-base text-gray-600 px-4">
-                                All detailers are vetted and certified by our quality standards
-                            </p>
-                        </div>
-                        <div className="text-center sm:col-span-2 lg:col-span-1">
-                            <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Lock className="text-white" size={32} />
-                            </div>
-                            <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Secure Payment</h3>
-                            <p className="text-sm sm:text-base text-gray-600 px-4">
-                                Book and pay securely through our platform with transparent pricing
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Footer */}
-            <footer className="bg-gray-800 text-white py-8">
-                <div className="max-w-7xl mx-auto px-6 text-center">
-                    <p className="text-gray-400 text-sm">
-                        This page is from your design and was generated to make your detailing work easier.
-                    </p>
-                    <p className="text-gray-400 text-sm mt-2">
-                        If you have any comments or feedback, let us know!
-                    </p>
-                </div>
-            </footer>
-
-            {/* Review Modal */}
-            {showReviewModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Write a Review</h3>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
-                                <div className="flex gap-1">
-                                    {[1, 2, 3, 4, 5].map(star => (
-                                        <button
-                                            key={star}
-                                            onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
-                                            className="text-2xl"
-                                        >
-                                            <Star
-                                                className={star <= reviewData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
-                                                size={32}
-                                            />
-                                        </button>
-                                    ))}
+                {/* Why Choose Section */}
+                <div className="bg-gradient-to-r from-gray-50 to-cyan-50 py-12 sm:py-16">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-8 sm:mb-12">
+                            Why Choose BRNNO
+                        </h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                            <div className="text-center">
+                                <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <MapPin className="text-white" size={32} />
                                 </div>
-                                <p className="text-sm text-gray-500 mt-1">
-                                    {reviewData.rating === 1 ? 'Poor' :
-                                        reviewData.rating === 2 ? 'Fair' :
-                                            reviewData.rating === 3 ? 'Good' :
-                                                reviewData.rating === 4 ? 'Very Good' : 'Excellent'}
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Come to You</h3>
+                                <p className="text-sm sm:text-base text-gray-600 px-4">
+                                    Professional detailers arrive at your location, saving you time and hassle
                                 </p>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Your Review</label>
-                                <textarea
-                                    value={reviewData.comment}
-                                    onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
-                                    placeholder="Tell others about your experience..."
-                                    rows={4}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
-                                />
+                            <div className="text-center">
+                                <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Shield className="text-white" size={32} />
+                                </div>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Verified Professionals</h3>
+                                <p className="text-sm sm:text-base text-gray-600 px-4">
+                                    All detailers are vetted and certified by our quality standards
+                                </p>
                             </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    setShowReviewModal(false);
-                                    setReviewData({ rating: 5, comment: '', providerId: null });
-                                }}
-                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmitReview}
-                                className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
-                            >
-                                Submit Review
-                            </button>
+                            <div className="text-center sm:col-span-2 lg:col-span-1">
+                                <div className="bg-cyan-500 w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <Lock className="text-white" size={32} />
+                                </div>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">Secure Payment</h3>
+                                <p className="text-sm sm:text-base text-gray-600 px-4">
+                                    Book and pay securely through our platform with transparent pricing
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            )}
 
-            {/* Add Vehicle Modal */}
-            {showAddVehicle && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Vehicle</h3>
+                {/* Footer */}
+                <footer className="bg-gray-800 text-white py-8">
+                    <div className="max-w-7xl mx-auto px-6 text-center">
+                        <p className="text-gray-400 text-sm">
+                            This page is from your design and was generated to make your detailing work easier.
+                        </p>
+                        <p className="text-gray-400 text-sm mt-2">
+                            If you have any comments or feedback, let us know!
+                        </p>
+                    </div>
+                </footer>
 
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                {/* Review Modal */}
+                {showReviewModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Write a Review</h3>
+
+                            <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Make</label>
-                                    <input
-                                        type="text"
-                                        value={newVehicle.make}
-                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, make: e.target.value }))}
-                                        placeholder="e.g., Toyota"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    />
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
+                                    <div className="flex gap-1">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <button
+                                                key={star}
+                                                onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
+                                                className="text-2xl"
+                                            >
+                                                <Star
+                                                    className={star <= reviewData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                    size={32}
+                                                />
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        {reviewData.rating === 1 ? 'Poor' :
+                                            reviewData.rating === 2 ? 'Fair' :
+                                                reviewData.rating === 3 ? 'Good' :
+                                                    reviewData.rating === 4 ? 'Very Good' : 'Excellent'}
+                                    </p>
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Model</label>
-                                    <input
-                                        type="text"
-                                        value={newVehicle.model}
-                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, model: e.target.value }))}
-                                        placeholder="e.g., Camry"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Your Review</label>
+                                    <textarea
+                                        value={reviewData.comment}
+                                        onChange={(e) => setReviewData(prev => ({ ...prev, comment: e.target.value }))}
+                                        placeholder="Tell others about your experience..."
+                                        rows={4}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent resize-none"
                                     />
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Year</label>
-                                    <input
-                                        type="number"
-                                        value={newVehicle.year}
-                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, year: e.target.value }))}
-                                        placeholder="2023"
-                                        min="1990"
-                                        max="2025"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Color</label>
-                                    <input
-                                        type="text"
-                                        value={newVehicle.color}
-                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, color: e.target.value }))}
-                                        placeholder="e.g., Silver"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    />
-                                </div>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setShowReviewModal(false);
+                                        setReviewData({ rating: 5, comment: '', providerId: null });
+                                    }}
+                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSubmitReview}
+                                    className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Submit Review
+                                </button>
                             </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">License Plate (Optional)</label>
-                                <input
-                                    type="text"
-                                    value={newVehicle.licensePlate}
-                                    onChange={(e) => setNewVehicle(prev => ({ ...prev, licensePlate: e.target.value }))}
-                                    placeholder="e.g., ABC123"
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3 mt-6">
-                            <button
-                                onClick={() => {
-                                    setShowAddVehicle(false);
-                                    setNewVehicle({
-                                        make: '',
-                                        model: '',
-                                        year: '',
-                                        color: '',
-                                        licensePlate: ''
-                                    });
-                                }}
-                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleAddVehicle}
-                                className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
-                            >
-                                Add Vehicle
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )}
+
+                {/* Add Vehicle Modal */}
+                {showAddVehicle && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Vehicle</h3>
+
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Make</label>
+                                        <input
+                                            type="text"
+                                            value={newVehicle.make}
+                                            onChange={(e) => setNewVehicle(prev => ({ ...prev, make: e.target.value }))}
+                                            placeholder="e.g., Toyota"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Model</label>
+                                        <input
+                                            type="text"
+                                            value={newVehicle.model}
+                                            onChange={(e) => setNewVehicle(prev => ({ ...prev, model: e.target.value }))}
+                                            placeholder="e.g., Camry"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Year</label>
+                                        <input
+                                            type="number"
+                                            value={newVehicle.year}
+                                            onChange={(e) => setNewVehicle(prev => ({ ...prev, year: e.target.value }))}
+                                            placeholder="2023"
+                                            min="1990"
+                                            max="2025"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Color</label>
+                                        <input
+                                            type="text"
+                                            value={newVehicle.color}
+                                            onChange={(e) => setNewVehicle(prev => ({ ...prev, color: e.target.value }))}
+                                            placeholder="e.g., Silver"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">License Plate (Optional)</label>
+                                    <input
+                                        type="text"
+                                        value={newVehicle.licensePlate}
+                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, licensePlate: e.target.value }))}
+                                        placeholder="e.g., ABC123"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setShowAddVehicle(false);
+                                        setNewVehicle({
+                                            make: '',
+                                            model: '',
+                                            year: '',
+                                            color: '',
+                                            licensePlate: ''
+                                        });
+                                    }}
+                                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAddVehicle}
+                                    className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    Add Vehicle
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
         </Elements>
     );
 };
