@@ -3,6 +3,7 @@ import { Star, MapPin, Shield, Clock, DollarSign, CheckCircle, Lock, Car, Camera
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, getDocs, where, deleteDoc, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from './firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import locationService from './locationService';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -3227,6 +3228,8 @@ const BRNNOMarketplace = () => {
     const [selectedArea, setSelectedArea] = useState('All Areas');
     const [selectedType, setSelectedType] = useState('All Types');
     const [activeFilters, setActiveFilters] = useState([]);
+    const [userLocation, setUserLocation] = useState(null);
+    const [locationLoading, setLocationLoading] = useState(false);
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showProfilePanel, setShowProfilePanel] = useState(false);
@@ -3433,8 +3436,80 @@ const BRNNOMarketplace = () => {
         );
     };
 
-    // For now, show all providers without filtering
-    const filteredServices = services;
+    // Initialize Google Maps API
+    React.useEffect(() => {
+        const initializeLocation = async () => {
+            try {
+                // Get Google Maps API key from environment variables
+                const API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+
+                if (!API_KEY) {
+                    console.error('Google Maps API key not found. Please add REACT_APP_GOOGLE_MAPS_API_KEY to your environment variables.');
+                    return;
+                }
+                await locationService.initialize(API_KEY);
+                console.log('Google Maps API initialized');
+            } catch (error) {
+                console.error('Failed to initialize Google Maps:', error);
+            }
+        };
+
+        initializeLocation();
+    }, []);
+
+    // Get user's current location
+    const getUserLocation = async () => {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by this browser.');
+            return;
+        }
+
+        setLocationLoading(true);
+        try {
+            const position = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject);
+            });
+
+            const userCoords = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+
+            setUserLocation(userCoords);
+
+            // Get city name from coordinates
+            const locationInfo = await locationService.reverseGeocode(userCoords.lat, userCoords.lng);
+            console.log('User location:', locationInfo);
+
+        } catch (error) {
+            console.error('Error getting location:', error);
+            alert('Unable to get your location. Please enter your city manually.');
+        } finally {
+            setLocationLoading(false);
+        }
+    };
+
+    // Advanced location-based filtering
+    const filteredServices = services.filter(service => {
+        // If "All Areas" is selected, show all providers
+        if (selectedArea === 'All Areas') {
+            return true;
+        }
+
+        // If user has location and provider has coordinates, use distance-based filtering
+        if (userLocation && service.coordinates) {
+            const distance = locationService.calculateDistance(userLocation, service.coordinates);
+            return distance <= 50; // 50km radius
+        }
+
+        // Fallback to text-based matching
+        const serviceArea = service.serviceArea?.toLowerCase() || '';
+        const selectedAreaLower = selectedArea.toLowerCase();
+
+        return serviceArea.includes(selectedAreaLower) ||
+            serviceArea.includes('local') ||
+            serviceArea.includes('all areas');
+    });
 
     const ServiceCard = ({ service }) => (
         <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
@@ -3844,18 +3919,38 @@ const BRNNOMarketplace = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Service Area</label>
-                            <select
-                                value={selectedArea}
-                                onChange={(e) => setSelectedArea(e.target.value)}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
-                            >
-                                <option>All Areas</option>
-                                <option>Downtown</option>
-                                <option>North Side</option>
-                                <option>South Side</option>
-                                <option>East Side</option>
-                                <option>West Side</option>
-                            </select>
+                            <div className="flex gap-2">
+                                <select
+                                    value={selectedArea}
+                                    onChange={(e) => setSelectedArea(e.target.value)}
+                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
+                                >
+                                    <option>All Areas</option>
+                                    <option>Salt Lake City</option>
+                                    <option>Provo</option>
+                                    <option>Orem</option>
+                                    <option>West Valley City</option>
+                                    <option>West Jordan</option>
+                                    <option>Lehi</option>
+                                    <option>Ogden</option>
+                                    <option>Layton</option>
+                                    <option>Taylorsville</option>
+                                    <option>St. George</option>
+                                    <option>Local Area</option>
+                                </select>
+                                <button
+                                    onClick={getUserLocation}
+                                    disabled={locationLoading}
+                                    className="px-4 py-3 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-400 flex items-center gap-2 text-sm"
+                                >
+                                    {locationLoading ? (
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    ) : (
+                                        <MapPin className="w-4 h-4" />
+                                    )}
+                                    {locationLoading ? 'Finding...' : 'My Location'}
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Service Type</label>
