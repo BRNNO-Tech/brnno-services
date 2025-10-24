@@ -955,10 +955,10 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         try {
             setLoading(true);
             setError('');
-            
+
             // Update password using Firebase Auth
             await updatePassword(auth.currentUser, passwordData.newPassword);
-            
+
             setSuccess('Password updated successfully!');
             setPasswordData({
                 currentPassword: '',
@@ -966,10 +966,10 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                 confirmPassword: ''
             });
             setShowChangePassword(false);
-            
+
             // Clear success message after 3 seconds
             setTimeout(() => setSuccess(''), 3000);
-            
+
         } catch (error) {
             console.error('Password update error:', error);
             if (error.code === 'auth/requires-recent-login') {
@@ -1160,7 +1160,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                                     >
                                         {loading ? 'Saving...' : 'Save Changes'}
-                                </button>
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setIsEditing(false);
@@ -1187,7 +1187,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                             <div className="pt-4 sm:pt-6 border-t border-gray-200">
                                 <h4 className="font-bold text-gray-800 mb-3 text-sm sm:text-base">Account Settings</h4>
                                 <div className="space-y-1 sm:space-y-2">
-                                    <button 
+                                    <button
                                         onClick={() => setShowChangePassword(true)}
                                         className="w-full text-left px-3 sm:px-4 py-3 hover:bg-gray-50 rounded-lg transition-colors text-gray-700 touch-manipulation text-sm sm:text-base"
                                     >
@@ -1231,7 +1231,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">
                         <h3 className="text-xl font-bold text-gray-800 mb-4">Change Password</h3>
-                        
+
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Current Password</label>
@@ -1243,7 +1243,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                 />
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
                                 <input
@@ -1255,7 +1255,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                 />
                                 <p className="text-xs text-gray-500 mt-1">Must be at least 6 characters</p>
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Confirm New Password</label>
                                 <input
@@ -1292,9 +1292,9 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                 className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
                             >
                                 {loading ? 'Updating...' : 'Update Password'}
-                    </button>
-                </div>
-            </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </>
@@ -1460,29 +1460,29 @@ const BookingModal = memo(({
                                 <div className="space-y-3 mb-6">
                                     {userVehicles.length > 0 ? (
                                         userVehicles.map(vehicle => (
-                                        <div
-                                            key={vehicle.id}
-                                            onClick={() => setBookingData({ ...bookingData, vehicle })}
-                                            className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
-                                                ? 'border-cyan-500 bg-cyan-50'
-                                                : 'border-gray-200 hover:border-cyan-300'
-                                                }`}
-                                        >
-                                            <div className="bg-cyan-100 p-3 rounded-lg">
-                                                <Car className="text-cyan-600" size={24} />
-                                            </div>
+                                            <div
+                                                key={vehicle.id}
+                                                onClick={() => setBookingData({ ...bookingData, vehicle })}
+                                                className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
+                                                    ? 'border-cyan-500 bg-cyan-50'
+                                                    : 'border-gray-200 hover:border-cyan-300'
+                                                    }`}
+                                            >
+                                                <div className="bg-cyan-100 p-3 rounded-lg">
+                                                    <Car className="text-cyan-600" size={24} />
+                                                </div>
                                                 <div className="flex-1">
-                                                <h4 className="font-bold text-gray-800">
-                                                    {vehicle.year} {vehicle.make} {vehicle.model}
-                                                </h4>
+                                                    <h4 className="font-bold text-gray-800">
+                                                        {vehicle.year} {vehicle.make} {vehicle.model}
+                                                    </h4>
                                                     {vehicle.color && (
                                                         <p className="text-sm text-gray-600">{vehicle.color}</p>
                                                     )}
                                                     {vehicle.licensePlate && (
                                                         <p className="text-xs text-gray-500">License: {vehicle.licensePlate}</p>
                                                     )}
+                                                </div>
                                             </div>
-                                        </div>
                                         ))
                                     ) : (
                                         <div className="text-center py-8 text-gray-500">
@@ -1490,7 +1490,7 @@ const BookingModal = memo(({
                                             <p>No vehicles added yet</p>
                                         </div>
                                     )}
-                                    <button 
+                                    <button
                                         onClick={() => setShowAddVehicle(true)}
                                         className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors font-semibold"
                                     >
@@ -1732,7 +1732,7 @@ const BookingModal = memo(({
                                         console.log('Body: You have a new booking! Payment will be processed shortly.');
 
                                         alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
-                                    closeModal();
+                                        closeModal();
                                     } catch (error) {
                                         console.error('Error creating booking:', error);
                                         alert('Error creating booking. Please try again.');
@@ -2050,17 +2050,17 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                 {!providerData.skipInsurance && (
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer mt-4">
-                                    <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
-                                    <label htmlFor="insurance-upload" className="cursor-pointer">
-                                        <div className="text-cyan-600 mb-2">
-                                            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                            </svg>
-                                        </div>
-                                        <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
-                                        <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                                    </label>
-                                </div>
+                                        <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
+                                        <label htmlFor="insurance-upload" className="cursor-pointer">
+                                            <div className="text-cyan-600 mb-2">
+                                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                                </svg>
+                                            </div>
+                                            <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
+                                            <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                                        </label>
+                                    </div>
                                 )}
                                 <p className="text-xs text-gray-500 mt-2">Recommended: General liability insurance with minimum $1M coverage</p>
                             </div>
@@ -2127,7 +2127,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             }
                                         }}
                                     />
-                            <div>
+                                    <div>
                                         <label htmlFor="skip-payment" className="font-semibold text-gray-800">
                                             Skip payment setup for now
                                         </label>
@@ -2142,43 +2142,43 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name</label>
-                                <input
-                                    type="text"
-                                    placeholder="John Doe or Elite Auto Spa LLC"
+                                        <input
+                                            type="text"
+                                            placeholder="John Doe or Elite Auto Spa LLC"
                                             value={providerData.bankAccountHolder || ''}
                                             onChange={(e) => setProviderData({ ...providerData, bankAccountHolder: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div>
+                                    <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number</label>
-                                <input
-                                    type="text"
-                                    placeholder="123456789"
-                                    value={providerData.routingNumber}
-                                    onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                        <input
+                                            type="text"
+                                            placeholder="123456789"
+                                            value={providerData.routingNumber}
+                                            onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div>
+                                    <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Account Number</label>
-                                <input
-                                    type="text"
-                                    placeholder="Account number"
-                                    value={providerData.bankAccount}
-                                    onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                />
-                            </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Account number"
+                                            value={providerData.bankAccount}
+                                            onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                    </div>
 
-                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                <p className="text-xs text-gray-600">
-                                    🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
-                                    and never stores your full account details on our servers.
-                                </p>
-                            </div>
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                        <p className="text-xs text-gray-600">
+                                            🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
+                                            and never stores your full account details on our servers.
+                                        </p>
+                                    </div>
                                 </>
                             )}
                         </div>
@@ -2366,23 +2366,23 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             ownerName: providerData.ownerName,
                                             message: `Hello ${providerData.ownerName},\n\nYour provider application for ${providerData.businessName} has been approved!\n\nYou can now start accepting bookings through your provider dashboard.\n\nThank you for joining BRNNO!`
                                         };
-                                        
+
                                         // For now, just log the email (you can add EmailJS or SendGrid later)
                                         console.log('📧 EMAIL NOTIFICATION:');
                                         console.log('To:', emailData.to);
                                         console.log('Subject:', emailData.subject);
                                         console.log('Message:', emailData.message);
-                                        
+
                                         // TODO: Add real email service (EmailJS, SendGrid, etc.)
                                         // await sendEmail(emailData);
-                                        
+
                                     } catch (emailError) {
                                         console.error('Email notification failed:', emailError);
                                         // Don't fail the whole process if email fails
                                     }
 
                                     alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
-                                closeModal();
+                                    closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
 
@@ -3530,7 +3530,7 @@ const BRNNOMarketplace = () => {
                     console.log('Provider doc:', doc.id, doc.data());
                     console.log('Status field:', doc.data().status);
                 });
-                
+
                 // Try without status filter first to see all providers
                 const providersQuery = query(collection(db, 'providers'));
                 const providersSnapshot = await getDocs(providersQuery);
@@ -3576,19 +3576,19 @@ const BRNNOMarketplace = () => {
 
         if (params.get('admin') === 'brnno2025') {
             if (user && userData && userData.role === 'admin') {
-                            console.log('Admin access granted');
-                            setShowAdminDashboard(true);
-                            setIsAdmin(true);
+                console.log('Admin access granted');
+                setShowAdminDashboard(true);
+                setIsAdmin(true);
             } else if (user && userData && userData.role !== 'admin') {
-                            console.log('Access denied - not admin');
-                            alert('Access denied. Admin privileges required.');
-                            setShowAdminDashboard(false);
-                            setIsAdmin(false);
+                console.log('Access denied - not admin');
+                alert('Access denied. Admin privileges required.');
+                setShowAdminDashboard(false);
+                setIsAdmin(false);
             } else if (!user) {
-                    console.log('User not logged in - showing login modal');
-                    alert('Please log in first to access admin dashboard');
-                    setShowLoginModal(true);
-                }
+                console.log('User not logged in - showing login modal');
+                alert('Please log in first to access admin dashboard');
+                setShowLoginModal(true);
+            }
         }
     }, [user, userData]);
 
@@ -3628,14 +3628,14 @@ const BRNNOMarketplace = () => {
 
             // Save review to Firebase
             await addDoc(collection(db, 'reviews'), review);
-            
+
             // Update provider's average rating
             await updateProviderRating(reviewData.providerId);
-            
+
             alert('Review submitted successfully! Thank you for your feedback.');
             setShowReviewModal(false);
             setReviewData({ rating: 5, comment: '', providerId: null });
-            
+
         } catch (error) {
             console.error('Error submitting review:', error);
             alert('Failed to submit review. Please try again.');
@@ -3651,24 +3651,24 @@ const BRNNOMarketplace = () => {
                 where('providerId', '==', providerId)
             );
             const reviewsSnapshot = await getDocs(reviewsQuery);
-            
+
             let totalRating = 0;
             let reviewCount = 0;
-            
+
             reviewsSnapshot.forEach(doc => {
                 const data = doc.data();
                 totalRating += data.rating;
                 reviewCount++;
             });
-            
+
             const averageRating = reviewCount > 0 ? totalRating / reviewCount : 0;
-            
+
             // Update provider document
             await updateDoc(doc(db, 'providers', providerId), {
                 rating: Math.round(averageRating * 10) / 10, // Round to 1 decimal
                 reviewCount: reviewCount
             });
-            
+
             // Also update user document if they have provider info
             const userQuery = query(
                 collection(db, 'users'),
@@ -3676,7 +3676,7 @@ const BRNNOMarketplace = () => {
                 where('businessName', '!=', null)
             );
             const userSnapshot = await getDocs(userQuery);
-            
+
             userSnapshot.forEach(async (userDoc) => {
                 const userData = userDoc.data();
                 if (userData.businessName) {
@@ -3686,7 +3686,7 @@ const BRNNOMarketplace = () => {
                     });
                 }
             });
-            
+
         } catch (error) {
             console.error('Error updating provider rating:', error);
         }
@@ -3695,7 +3695,7 @@ const BRNNOMarketplace = () => {
     // Load user vehicles
     const loadUserVehicles = async () => {
         if (!auth.currentUser) return;
-        
+
         try {
             const vehiclesQuery = query(
                 collection(db, 'vehicles'),
@@ -3703,14 +3703,14 @@ const BRNNOMarketplace = () => {
             );
             const vehiclesSnapshot = await getDocs(vehiclesQuery);
             const vehicles = [];
-            
+
             vehiclesSnapshot.forEach((doc) => {
                 vehicles.push({
                     id: doc.id,
                     ...doc.data()
                 });
             });
-            
+
             setUserVehicles(vehicles);
             console.log('Loaded user vehicles:', vehicles);
         } catch (error) {
@@ -3738,10 +3738,10 @@ const BRNNOMarketplace = () => {
             };
 
             await addDoc(collection(db, 'vehicles'), vehicleData);
-            
+
             // Reload vehicles
             await loadUserVehicles();
-            
+
             // Reset form
             setNewVehicle({
                 make: '',
@@ -3751,7 +3751,7 @@ const BRNNOMarketplace = () => {
                 licensePlate: ''
             });
             setShowAddVehicle(false);
-            
+
             alert('Vehicle added successfully!');
         } catch (error) {
             console.error('Error adding vehicle:', error);
@@ -3763,15 +3763,14 @@ const BRNNOMarketplace = () => {
     React.useEffect(() => {
         const initializeLocation = async () => {
             try {
-                // For now, we'll use a hardcoded API key or skip initialization
-                // In production, this should be set as an environment variable in Vercel
-                const API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY_HERE'; // Replace with actual key
-                
-                if (!API_KEY || API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY_HERE') {
+                // Try to get API key from Vercel environment or fallback
+                const API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'YOUR_ACTUAL_GOOGLE_MAPS_API_KEY_HERE'; // Replace with your actual key
+
+                if (!API_KEY) {
                     console.log('Google Maps API key not configured. Using fallback location service.');
                     return;
                 }
-                
+
                 await locationService.initialize(API_KEY);
                 console.log('Google Maps API initialized for location services');
             } catch (error) {
@@ -3779,16 +3778,42 @@ const BRNNOMarketplace = () => {
                 console.log('Using fallback location service');
             }
         };
-        
+
         initializeLocation();
     }, []);
 
     // Load user vehicles when authenticated
     React.useEffect(() => {
-        if (user) {
-            loadUserVehicles();
-        }
-    }, [user]);
+        const loadVehicles = async () => {
+            if (!auth.currentUser) {
+                console.log('No user authenticated');
+                return;
+            }
+
+            try {
+                const vehiclesQuery = query(
+                    collection(db, 'vehicles'),
+                    where('userId', '==', auth.currentUser.uid)
+                );
+                const vehiclesSnapshot = await getDocs(vehiclesQuery);
+                const vehicles = [];
+
+                vehiclesSnapshot.forEach((doc) => {
+                    vehicles.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                setUserVehicles(vehicles);
+                console.log('Loaded user vehicles:', vehicles);
+            } catch (error) {
+                console.error('Error loading vehicles:', error);
+            }
+        };
+
+        loadVehicles();
+    }, [auth.currentUser?.uid]); // Changed: Only depend on UID, not user object
 
     // Get user's current location (simplified version)
     const getUserLocation = async () => {
@@ -3810,10 +3835,10 @@ const BRNNOMarketplace = () => {
 
             setUserLocation(userCoords);
             console.log('User location coordinates:', userCoords);
-            
+
             // For now, just show a success message
             alert('Location detected! Showing providers in your area.');
-            
+
         } catch (error) {
             console.error('Error getting location:', error);
             alert('Unable to get your location. Please select your city from the dropdown.');
@@ -3826,7 +3851,7 @@ const BRNNOMarketplace = () => {
     const filteredServices = services.filter(service => {
         // If "All Areas" is selected, show all providers
         if (selectedArea === 'All Areas') {
-        return true;
+            return true;
         }
 
         // If user has location and provider has coordinates, use distance-based filtering
@@ -4071,18 +4096,18 @@ const BRNNOMarketplace = () => {
                             ) : (
                                 // User is not logged in - show login/signup buttons
                                 <>
-                            <button
-                                onClick={() => setShowLoginModal(true)}
-                                className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
-                            >
-                                Log In
-                            </button>
-                            <button
-                                onClick={() => setShowSignupModal(true)}
-                                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                            >
-                                Sign Up
-                            </button>
+                                    <button
+                                        onClick={() => setShowLoginModal(true)}
+                                        className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                        Log In
+                                    </button>
+                                    <button
+                                        onClick={() => setShowSignupModal(true)}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Sign Up
+                                    </button>
                                 </>
                             )}
                         </div>
@@ -4203,24 +4228,24 @@ const BRNNOMarketplace = () => {
                                     ) : (
                                         // User is not logged in - show login/signup buttons
                                         <>
-                                    <button
-                                        onClick={() => {
-                                            setShowLoginModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                    >
-                                        Log In
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            setShowSignupModal(true);
-                                            setShowMobileMenu(false);
-                                        }}
-                                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
-                                    >
-                                        Sign Up
-                                    </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowLoginModal(true);
+                                                    setShowMobileMenu(false);
+                                                }}
+                                                className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                            >
+                                                Log In
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowSignupModal(true);
+                                                    setShowMobileMenu(false);
+                                                }}
+                                                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
+                                            >
+                                                Sign Up
+                                            </button>
                                         </>
                                     )}
                                 </div>
@@ -4258,12 +4283,12 @@ const BRNNOMarketplace = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Service Area</label>
                             <div className="flex gap-2">
-                            <select
-                                value={selectedArea}
-                                onChange={(e) => setSelectedArea(e.target.value)}
+                                <select
+                                    value={selectedArea}
+                                    onChange={(e) => setSelectedArea(e.target.value)}
                                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
-                            >
-                                <option>All Areas</option>
+                                >
+                                    <option>All Areas</option>
                                     <option>Salt Lake City</option>
                                     <option>Provo</option>
                                     <option>Orem</option>
@@ -4275,7 +4300,7 @@ const BRNNOMarketplace = () => {
                                     <option>Taylorsville</option>
                                     <option>St. George</option>
                                     <option>Local Area</option>
-                            </select>
+                                </select>
                                 <button
                                     onClick={getUserLocation}
                                     disabled={locationLoading}
@@ -4405,7 +4430,7 @@ const BRNNOMarketplace = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">
                         <h3 className="text-xl font-bold text-gray-800 mb-4">Write a Review</h3>
-                        
+
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Rating</label>
@@ -4416,21 +4441,21 @@ const BRNNOMarketplace = () => {
                                             onClick={() => setReviewData(prev => ({ ...prev, rating: star }))}
                                             className="text-2xl"
                                         >
-                                            <Star 
-                                                className={star <= reviewData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'} 
-                                                size={32} 
+                                            <Star
+                                                className={star <= reviewData.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}
+                                                size={32}
                                             />
                                         </button>
                                     ))}
                                 </div>
                                 <p className="text-sm text-gray-500 mt-1">
-                                    {reviewData.rating === 1 ? 'Poor' : 
-                                     reviewData.rating === 2 ? 'Fair' : 
-                                     reviewData.rating === 3 ? 'Good' : 
-                                     reviewData.rating === 4 ? 'Very Good' : 'Excellent'}
+                                    {reviewData.rating === 1 ? 'Poor' :
+                                        reviewData.rating === 2 ? 'Fair' :
+                                            reviewData.rating === 3 ? 'Good' :
+                                                reviewData.rating === 4 ? 'Very Good' : 'Excellent'}
                                 </p>
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Your Review</label>
                                 <textarea
@@ -4469,7 +4494,7 @@ const BRNNOMarketplace = () => {
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl p-6 w-full max-w-md">
                         <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Vehicle</h3>
-                        
+
                         <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -4493,7 +4518,7 @@ const BRNNOMarketplace = () => {
                                     />
                                 </div>
                             </div>
-                            
+
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">Year</label>
@@ -4518,7 +4543,7 @@ const BRNNOMarketplace = () => {
                                     />
                                 </div>
                             </div>
-                            
+
                             <div>
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">License Plate (Optional)</label>
                                 <input
