@@ -2503,11 +2503,11 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Clock size={16} />
-                                        Responds in {provider.responseTime || '2 hours'}
+                                        Responds in {provider.responseTime || 'Within 24 hours'}
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <CheckCircle size={16} />
-                                        {provider.completedJobs || '247'} jobs completed
+                                        {provider.completedJobs || '0'} jobs completed
                                     </span>
                                 </div>
                             </div>
@@ -2541,7 +2541,7 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                 <h3 className="text-xl font-bold text-gray-800 mb-3">About</h3>
                                 <p className="text-gray-600 leading-relaxed">
                                     Professional mobile auto detailing service serving {provider.distance || '2.5 miles'} radius.
-                                    We specialize in premium detailing services with over {provider.completedJobs || '247'} satisfied customers.
+                                    We specialize in premium detailing services with {provider.completedJobs || '0'} satisfied customers.
                                     Our team is fully insured, background-checked, and committed to delivering exceptional results.
                                 </p>
                             </div>
@@ -2566,11 +2566,11 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                     <div className="text-sm text-gray-600">Average Rating</div>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-3xl font-bold text-cyan-600 mb-1">{provider.completedJobs || '247'}</div>
+                                    <div className="text-3xl font-bold text-cyan-600 mb-1">{provider.completedJobs || '0'}</div>
                                     <div className="text-sm text-gray-600">Jobs Completed</div>
                                 </div>
                                 <div className="bg-gray-50 rounded-lg p-4 text-center">
-                                    <div className="text-3xl font-bold text-cyan-600 mb-1">{provider.responseTime || '2 hours'}</div>
+                                    <div className="text-3xl font-bold text-cyan-600 mb-1">{provider.responseTime || '24 hours'}</div>
                                     <div className="text-sm text-gray-600">Response Time</div>
                                 </div>
                             </div>
