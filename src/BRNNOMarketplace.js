@@ -2426,7 +2426,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
     );
 });
 
-const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow }) => {
+const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow, setSelectedProvider, setBookingData, setShowBookingModal }) => {
     const [activeTab, setActiveTab] = useState('overview');
 
     // Lock body scroll when modal is open
@@ -3860,6 +3860,9 @@ const BRNNOMarketplace = () => {
                         setBookingData(prev => ({ ...prev, provider: selectedProvider }));
                         setShowBookingModal(true);
                     }}
+                    setSelectedProvider={setSelectedProvider}
+                    setBookingData={setBookingData}
+                    setShowBookingModal={setShowBookingModal}
                 />
             )}
             {showProviderDashboard && (
