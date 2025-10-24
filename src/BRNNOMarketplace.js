@@ -3763,8 +3763,8 @@ const BRNNOMarketplace = () => {
     React.useEffect(() => {
         const initializeLocation = async () => {
             try {
-                // Try to get API key from Vercel environment or fallback
-                const API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'YOUR_ACTUAL_GOOGLE_MAPS_API_KEY_HERE'; // Replace with your actual key
+                // Try to get API key from window object or use fallback
+                const API_KEY = window.GOOGLE_MAPS_API_KEY || 'YOUR_ACTUAL_GOOGLE_MAPS_API_KEY_HERE'; // Replace with your actual key
 
                 if (!API_KEY) {
                     console.log('Google Maps API key not configured. Using fallback location service.');
