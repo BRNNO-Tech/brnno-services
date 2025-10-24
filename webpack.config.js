@@ -41,7 +41,7 @@ module.exports = {
                 { from: 'public/BRNNO_logov3.jpg', to: 'BRNNO_logov3.jpg' },
                 { from: 'public/app.html', to: 'app.html' }
             ]
-        })
+        }),
     ],
     devServer: {
         static: {
