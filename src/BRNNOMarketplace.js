@@ -3764,7 +3764,7 @@ const BRNNOMarketplace = () => {
         const initializeLocation = async () => {
             try {
                 // Try to get API key from window object or use fallback
-                const API_KEY = window.GOOGLE_MAPS_API_KEY || 'YOUR_ACTUAL_GOOGLE_MAPS_API_KEY_HERE'; // Replace with your actual key
+                const API_KEY = window.GOOGLE_MAPS_API_KEY || 'AIzaSyCT3Y9DeGWOz6fjJXFr6I1n2H0etTVRJ64';
 
                 if (!API_KEY) {
                     console.log('Google Maps API key not configured. Using fallback location service.');
