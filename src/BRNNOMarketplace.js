@@ -1475,29 +1475,42 @@ const BookingModal = memo(({
 
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Select Vehicle</label>
                                 <div className="space-y-3 mb-6">
-                                    {[
-                                        { id: 1, make: 'Tesla', model: 'Model 3', year: '2023' },
-                                        { id: 2, make: 'BMW', model: 'X5', year: '2021' }
-                                    ].map(vehicle => (
-                                        <div
-                                            key={vehicle.id}
-                                            onClick={() => setBookingData({ ...bookingData, vehicle })}
-                                            className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
-                                                ? 'border-cyan-500 bg-cyan-50'
-                                                : 'border-gray-200 hover:border-cyan-300'
-                                                }`}
-                                        >
-                                            <div className="bg-cyan-100 p-3 rounded-lg">
-                                                <Car className="text-cyan-600" size={24} />
+                                    {userVehicles.length > 0 ? (
+                                        userVehicles.map(vehicle => (
+                                            <div
+                                                key={vehicle.id}
+                                                onClick={() => setBookingData({ ...bookingData, vehicle })}
+                                                className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
+                                                    ? 'border-cyan-500 bg-cyan-50'
+                                                    : 'border-gray-200 hover:border-cyan-300'
+                                                    }`}
+                                            >
+                                                <div className="bg-cyan-100 p-3 rounded-lg">
+                                                    <Car className="text-cyan-600" size={24} />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-gray-800">
+                                                        {vehicle.year} {vehicle.make} {vehicle.model}
+                                                    </h4>
+                                                    {vehicle.color && (
+                                                        <p className="text-sm text-gray-600">{vehicle.color}</p>
+                                                    )}
+                                                    {vehicle.licensePlate && (
+                                                        <p className="text-xs text-gray-500">License: {vehicle.licensePlate}</p>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-gray-800">
-                                                    {vehicle.year} {vehicle.make} {vehicle.model}
-                                                </h4>
-                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <Car size={48} className="mx-auto mb-2 text-gray-300" />
+                                            <p>No vehicles added yet</p>
                                         </div>
-                                    ))}
-                                    <button className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors font-semibold">
+                                    )}
+                                    <button 
+                                        onClick={() => setShowAddVehicle(true)}
+                                        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 text-gray-600 hover:border-cyan-500 hover:text-cyan-600 transition-colors font-semibold"
+                                    >
                                         + Add New Vehicle
                                     </button>
                                 </div>
@@ -3432,6 +3445,15 @@ const BRNNOMarketplace = () => {
         comment: '',
         providerId: null
     });
+    const [userVehicles, setUserVehicles] = useState([]);
+    const [showAddVehicle, setShowAddVehicle] = useState(false);
+    const [newVehicle, setNewVehicle] = useState({
+        make: '',
+        model: '',
+        year: '',
+        color: '',
+        licensePlate: ''
+    });
     const [dashboardTab, setDashboardTab] = useState('overview'); // overview, bookings, services, calendar, earnings, reviews, profile
     const [showAdminDashboard, setShowAdminDashboard] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
@@ -3687,6 +3709,73 @@ const BRNNOMarketplace = () => {
         }
     };
 
+    // Load user vehicles
+    const loadUserVehicles = async () => {
+        if (!auth.currentUser) return;
+        
+        try {
+            const vehiclesQuery = query(
+                collection(db, 'vehicles'),
+                where('userId', '==', auth.currentUser.uid)
+            );
+            const vehiclesSnapshot = await getDocs(vehiclesQuery);
+            const vehicles = [];
+            
+            vehiclesSnapshot.forEach((doc) => {
+                vehicles.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+            
+            setUserVehicles(vehicles);
+            console.log('Loaded user vehicles:', vehicles);
+        } catch (error) {
+            console.error('Error loading vehicles:', error);
+        }
+    };
+
+    // Add new vehicle
+    const handleAddVehicle = async () => {
+        if (!auth.currentUser) {
+            alert('Please sign in to add a vehicle.');
+            return;
+        }
+
+        if (!newVehicle.make || !newVehicle.model || !newVehicle.year) {
+            alert('Please fill in make, model, and year.');
+            return;
+        }
+
+        try {
+            const vehicleData = {
+                ...newVehicle,
+                userId: auth.currentUser.uid,
+                createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, 'vehicles'), vehicleData);
+            
+            // Reload vehicles
+            await loadUserVehicles();
+            
+            // Reset form
+            setNewVehicle({
+                make: '',
+                model: '',
+                year: '',
+                color: '',
+                licensePlate: ''
+            });
+            setShowAddVehicle(false);
+            
+            alert('Vehicle added successfully!');
+        } catch (error) {
+            console.error('Error adding vehicle:', error);
+            alert('Failed to add vehicle. Please try again.');
+        }
+    };
+
     // Initialize Google Maps API
     React.useEffect(() => {
         const initializeLocation = async () => {
@@ -3701,6 +3790,13 @@ const BRNNOMarketplace = () => {
         
         initializeLocation();
     }, []);
+
+    // Load user vehicles when authenticated
+    React.useEffect(() => {
+        if (user) {
+            loadUserVehicles();
+        }
+    }, [user]);
 
     // Get user's current location (simplified version)
     const getUserLocation = async () => {
@@ -4368,6 +4464,100 @@ const BRNNOMarketplace = () => {
                                 className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
                             >
                                 Submit Review
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Vehicle Modal */}
+            {showAddVehicle && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Vehicle</h3>
+                        
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Make</label>
+                                    <input
+                                        type="text"
+                                        value={newVehicle.make}
+                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, make: e.target.value }))}
+                                        placeholder="e.g., Toyota"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Model</label>
+                                    <input
+                                        type="text"
+                                        value={newVehicle.model}
+                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, model: e.target.value }))}
+                                        placeholder="e.g., Camry"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Year</label>
+                                    <input
+                                        type="number"
+                                        value={newVehicle.year}
+                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, year: e.target.value }))}
+                                        placeholder="2023"
+                                        min="1990"
+                                        max="2025"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Color</label>
+                                    <input
+                                        type="text"
+                                        value={newVehicle.color}
+                                        onChange={(e) => setNewVehicle(prev => ({ ...prev, color: e.target.value }))}
+                                        placeholder="e.g., Silver"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">License Plate (Optional)</label>
+                                <input
+                                    type="text"
+                                    value={newVehicle.licensePlate}
+                                    onChange={(e) => setNewVehicle(prev => ({ ...prev, licensePlate: e.target.value }))}
+                                    placeholder="e.g., ABC123"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowAddVehicle(false);
+                                    setNewVehicle({
+                                        make: '',
+                                        model: '',
+                                        year: '',
+                                        color: '',
+                                        licensePlate: ''
+                                    });
+                                }}
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddVehicle}
+                                className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
+                            >
+                                Add Vehicle
                             </button>
                         </div>
                     </div>
