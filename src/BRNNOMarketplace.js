@@ -5,6 +5,10 @@ import { db, auth } from './firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithRedirect, getRedirectResult, signOut, updatePassword } from 'firebase/auth';
 import locationService from './locationService';
 import AddressInput from './AddressInput';
+import { Elements, StripeProvider } from '@stripe/react-stripe-js';
+import stripePromise from './stripe';
+import paymentService from './paymentService';
+import StripeCardInput from './StripeCardInput';
 
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
@@ -1160,7 +1164,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                                     >
                                         {loading ? 'Saving...' : 'Save Changes'}
-                                    </button>
+                                </button>
                                     <button
                                         onClick={() => {
                                             setIsEditing(false);
@@ -1292,9 +1296,9 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                                 className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
                             >
                                 {loading ? 'Updating...' : 'Update Password'}
-                            </button>
-                        </div>
-                    </div>
+                    </button>
+                </div>
+            </div>
                 </div>
             )}
         </>
@@ -1460,29 +1464,29 @@ const BookingModal = memo(({
                                 <div className="space-y-3 mb-6">
                                     {userVehicles.length > 0 ? (
                                         userVehicles.map(vehicle => (
-                                            <div
-                                                key={vehicle.id}
-                                                onClick={() => setBookingData({ ...bookingData, vehicle })}
-                                                className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
-                                                    ? 'border-cyan-500 bg-cyan-50'
-                                                    : 'border-gray-200 hover:border-cyan-300'
-                                                    }`}
-                                            >
-                                                <div className="bg-cyan-100 p-3 rounded-lg">
-                                                    <Car className="text-cyan-600" size={24} />
-                                                </div>
+                                        <div
+                                            key={vehicle.id}
+                                            onClick={() => setBookingData({ ...bookingData, vehicle })}
+                                            className={`border-2 rounded-lg p-4 cursor-pointer transition-all flex items-center gap-3 ${bookingData.vehicle?.id === vehicle.id
+                                                ? 'border-cyan-500 bg-cyan-50'
+                                                : 'border-gray-200 hover:border-cyan-300'
+                                                }`}
+                                        >
+                                            <div className="bg-cyan-100 p-3 rounded-lg">
+                                                <Car className="text-cyan-600" size={24} />
+                                            </div>
                                                 <div className="flex-1">
-                                                    <h4 className="font-bold text-gray-800">
-                                                        {vehicle.year} {vehicle.make} {vehicle.model}
-                                                    </h4>
+                                                <h4 className="font-bold text-gray-800">
+                                                    {vehicle.year} {vehicle.make} {vehicle.model}
+                                                </h4>
                                                     {vehicle.color && (
                                                         <p className="text-sm text-gray-600">{vehicle.color}</p>
                                                     )}
                                                     {vehicle.licensePlate && (
                                                         <p className="text-xs text-gray-500">License: {vehicle.licensePlate}</p>
                                                     )}
-                                                </div>
                                             </div>
+                                        </div>
                                         ))
                                     ) : (
                                         <div className="text-center py-8 text-gray-500">
@@ -1544,40 +1548,28 @@ const BookingModal = memo(({
                             </div>
 
                             <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Card Number</label>
-                                    <input
-                                        type="text"
-                                        placeholder="1234 5678 9012 3456"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Expiry Date</label>
-                                        <input
-                                            type="text"
-                                            placeholder="MM/YY"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">CVV</label>
-                                        <input
-                                            type="text"
-                                            placeholder="123"
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
-                                </div>
+                                <StripeCardInput
+                                    onCardChange={(event) => {
+                                        setBookingData(prev => ({ 
+                                            ...prev, 
+                                            cardComplete: event.complete,
+                                            cardError: event.error 
+                                        }));
+                                    }}
+                                    onCardError={(error) => {
+                                        setBookingData(prev => ({ 
+                                            ...prev, 
+                                            cardError: error 
+                                        }));
+                                    }}
+                                />
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Cardholder Name</label>
-                                    <input
-                                        type="text"
-                                        placeholder="John Doe"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Billing Address</label>
+                                    <AddressInput
+                                        initialValue={bookingData.billingAddress || ''}
+                                        onAddressChange={(value) => setBookingData(prev => ({ ...prev, billingAddress: value }))}
+                                        placeholder="Enter billing address..."
                                     />
                                 </div>
                             </div>
@@ -1700,26 +1692,48 @@ const BookingModal = memo(({
                                         const docRef = await addDoc(collection(db, 'bookings'), booking);
                                         console.log('Booking saved with ID:', docRef.id);
 
-                                        // Simulate payment processing
-                                        console.log('💳 PAYMENT PROCESSING:');
-                                        console.log('Processing payment of $' + booking.totalAmount + '...');
-                                        console.log('Platform fee (15%): $' + booking.platformFee);
-                                        console.log('Provider amount (85%): $' + booking.providerAmount);
+                                        // Process real payment with Stripe
+                                        try {
+                                            console.log('💳 PROCESSING PAYMENT WITH STRIPE:');
+                                            console.log('Amount: $' + booking.totalAmount);
+                                            console.log('Platform fee (15%): $' + booking.platformFee);
+                                            console.log('Provider amount (85%): $' + booking.providerAmount);
 
-                                        // Simulate successful payment after 2 seconds
-                                        setTimeout(async () => {
-                                            try {
-                                                await updateDoc(doc(db, 'bookings', docRef.id), {
-                                                    paymentStatus: 'paid',
-                                                    status: 'confirmed',
-                                                    paidAt: serverTimestamp()
-                                                });
-                                                console.log('✅ Payment processed successfully!');
-                                                console.log('💰 Provider will receive $' + booking.providerAmount + ' in their next payout');
-                                            } catch (error) {
-                                                console.error('Error updating payment status:', error);
-                                            }
-                                        }, 2000);
+                                            // Create payment intent
+                                            const paymentIntent = await paymentService.createPaymentIntent(bookingData);
+                                            console.log('Payment intent created:', paymentIntent.id);
+
+                                            // For now, we'll simulate successful payment
+                                            // In production, you would use the actual Stripe Elements to process the payment
+                                            await updateDoc(doc(db, 'bookings', docRef.id), {
+                                                paymentStatus: 'paid',
+                                                status: 'confirmed',
+                                                paidAt: serverTimestamp(),
+                                                paymentIntentId: paymentIntent.id
+                                            });
+
+                                            console.log('✅ Payment processed successfully!');
+                                            console.log('💰 Provider will receive $' + booking.providerAmount + ' in their next payout');
+
+                                            // Process provider payout
+                                            const payout = await paymentService.processProviderPayout(
+                                                bookingData.provider?.id, 
+                                                booking.providerAmount
+                                            );
+                                            console.log('Provider payout created:', payout.id);
+
+                                        } catch (paymentError) {
+                                            console.error('Payment processing failed:', paymentError);
+                                            
+                                            // Update booking with failed payment
+                                            await updateDoc(doc(db, 'bookings', docRef.id), {
+                                                paymentStatus: 'failed',
+                                                status: 'payment_failed',
+                                                paymentError: paymentError.message
+                                            });
+                                            
+                                            throw new Error('Payment processing failed: ' + paymentError.message);
+                                        }
 
                                         // Email notifications (console log for now)
                                         console.log('📧 BOOKING NOTIFICATIONS:');
@@ -1732,7 +1746,7 @@ const BookingModal = memo(({
                                         console.log('Body: You have a new booking! Payment will be processed shortly.');
 
                                         alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
-                                        closeModal();
+                                    closeModal();
                                     } catch (error) {
                                         console.error('Error creating booking:', error);
                                         alert('Error creating booking. Please try again.');
@@ -2050,17 +2064,17 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                 {!providerData.skipInsurance && (
                                     <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-cyan-500 transition-colors cursor-pointer mt-4">
-                                        <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
-                                        <label htmlFor="insurance-upload" className="cursor-pointer">
-                                            <div className="text-cyan-600 mb-2">
-                                                <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                                </svg>
-                                            </div>
-                                            <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
-                                            <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
-                                        </label>
-                                    </div>
+                                    <input type="file" className="hidden" id="insurance-upload" accept=".pdf,.jpg,.png" />
+                                    <label htmlFor="insurance-upload" className="cursor-pointer">
+                                        <div className="text-cyan-600 mb-2">
+                                            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                            </svg>
+                                        </div>
+                                        <p className="font-semibold text-gray-700">Upload Insurance Certificate</p>
+                                        <p className="text-sm text-gray-500 mt-1">PDF, JPG, or PNG (Max 5MB)</p>
+                                    </label>
+                                </div>
                                 )}
                                 <p className="text-xs text-gray-500 mt-2">Recommended: General liability insurance with minimum $1M coverage</p>
                             </div>
@@ -2127,7 +2141,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                             }
                                         }}
                                     />
-                                    <div>
+                            <div>
                                         <label htmlFor="skip-payment" className="font-semibold text-gray-800">
                                             Skip payment setup for now
                                         </label>
@@ -2142,43 +2156,43 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                 <>
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Bank Account Holder Name</label>
-                                        <input
-                                            type="text"
-                                            placeholder="John Doe or Elite Auto Spa LLC"
+                                <input
+                                    type="text"
+                                    placeholder="John Doe or Elite Auto Spa LLC"
                                             value={providerData.bankAccountHolder || ''}
                                             onChange={(e) => setProviderData({ ...providerData, bankAccountHolder: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div>
+                            <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Routing Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="123456789"
-                                            value={providerData.routingNumber}
-                                            onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                <input
+                                    type="text"
+                                    placeholder="123456789"
+                                    value={providerData.routingNumber}
+                                    onChange={(e) => setProviderData({ ...providerData, routingNumber: e.target.value })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div>
+                            <div>
                                         <label className="block text-sm font-bold text-gray-700 mb-2">Account Number</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Account number"
-                                            value={providerData.bankAccount}
-                                            onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                                        />
-                                    </div>
+                                <input
+                                    type="text"
+                                    placeholder="Account number"
+                                    value={providerData.bankAccount}
+                                    onChange={(e) => setProviderData({ ...providerData, bankAccount: e.target.value })}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
 
-                                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <p className="text-xs text-gray-600">
-                                            🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
-                                            and never stores your full account details on our servers.
-                                        </p>
-                                    </div>
+                            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                <p className="text-xs text-gray-600">
+                                    🔒 Your banking information is encrypted and securely stored. BRNNO uses Stripe for payment processing
+                                    and never stores your full account details on our servers.
+                                </p>
+                            </div>
                                 </>
                             )}
                         </div>
@@ -2382,7 +2396,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     }
 
                                     alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
-                                    closeModal();
+                                closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
 
@@ -3576,19 +3590,19 @@ const BRNNOMarketplace = () => {
 
         if (params.get('admin') === 'brnno2025') {
             if (user && userData && userData.role === 'admin') {
-                console.log('Admin access granted');
-                setShowAdminDashboard(true);
-                setIsAdmin(true);
+                            console.log('Admin access granted');
+                            setShowAdminDashboard(true);
+                            setIsAdmin(true);
             } else if (user && userData && userData.role !== 'admin') {
-                console.log('Access denied - not admin');
-                alert('Access denied. Admin privileges required.');
-                setShowAdminDashboard(false);
-                setIsAdmin(false);
+                            console.log('Access denied - not admin');
+                            alert('Access denied. Admin privileges required.');
+                            setShowAdminDashboard(false);
+                            setIsAdmin(false);
             } else if (!user) {
-                console.log('User not logged in - showing login modal');
-                alert('Please log in first to access admin dashboard');
-                setShowLoginModal(true);
-            }
+                    console.log('User not logged in - showing login modal');
+                    alert('Please log in first to access admin dashboard');
+                    setShowLoginModal(true);
+                }
         }
     }, [user, userData]);
 
@@ -3851,7 +3865,7 @@ const BRNNOMarketplace = () => {
     const filteredServices = services.filter(service => {
         // If "All Areas" is selected, show all providers
         if (selectedArea === 'All Areas') {
-            return true;
+        return true;
         }
 
         // If user has location and provider has coordinates, use distance-based filtering
@@ -3925,7 +3939,8 @@ const BRNNOMarketplace = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <Elements stripe={stripePromise}>
+            <div className="min-h-screen bg-gray-50">
             <LoginModal
                 showLoginModal={showLoginModal}
                 setShowLoginModal={setShowLoginModal}
@@ -4096,18 +4111,18 @@ const BRNNOMarketplace = () => {
                             ) : (
                                 // User is not logged in - show login/signup buttons
                                 <>
-                                    <button
-                                        onClick={() => setShowLoginModal(true)}
-                                        className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
-                                    >
-                                        Log In
-                                    </button>
-                                    <button
-                                        onClick={() => setShowSignupModal(true)}
-                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
-                                    >
-                                        Sign Up
-                                    </button>
+                            <button
+                                onClick={() => setShowLoginModal(true)}
+                                className="text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg transition-colors"
+                            >
+                                Log In
+                            </button>
+                            <button
+                                onClick={() => setShowSignupModal(true)}
+                                className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg font-semibold transition-colors"
+                            >
+                                Sign Up
+                            </button>
                                 </>
                             )}
                         </div>
@@ -4228,24 +4243,24 @@ const BRNNOMarketplace = () => {
                                     ) : (
                                         // User is not logged in - show login/signup buttons
                                         <>
-                                            <button
-                                                onClick={() => {
-                                                    setShowLoginModal(true);
-                                                    setShowMobileMenu(false);
-                                                }}
-                                                className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                            >
-                                                Log In
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowSignupModal(true);
-                                                    setShowMobileMenu(false);
-                                                }}
-                                                className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
-                                            >
-                                                Sign Up
-                                            </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowLoginModal(true);
+                                            setShowMobileMenu(false);
+                                        }}
+                                        className="w-full text-left text-gray-600 hover:text-cyan-500 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    >
+                                        Log In
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setShowSignupModal(true);
+                                            setShowMobileMenu(false);
+                                        }}
+                                        className="w-full bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-3 rounded-lg font-semibold mt-2 transition-colors"
+                                    >
+                                        Sign Up
+                                    </button>
                                         </>
                                     )}
                                 </div>
@@ -4283,12 +4298,12 @@ const BRNNOMarketplace = () => {
                         <div>
                             <label className="block text-sm font-semibold text-gray-700 mb-2">Service Area</label>
                             <div className="flex gap-2">
-                                <select
-                                    value={selectedArea}
-                                    onChange={(e) => setSelectedArea(e.target.value)}
+                            <select
+                                value={selectedArea}
+                                onChange={(e) => setSelectedArea(e.target.value)}
                                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm sm:text-base"
-                                >
-                                    <option>All Areas</option>
+                            >
+                                <option>All Areas</option>
                                     <option>Salt Lake City</option>
                                     <option>Provo</option>
                                     <option>Orem</option>
@@ -4300,7 +4315,7 @@ const BRNNOMarketplace = () => {
                                     <option>Taylorsville</option>
                                     <option>St. George</option>
                                     <option>Local Area</option>
-                                </select>
+                            </select>
                                 <button
                                     onClick={getUserLocation}
                                     disabled={locationLoading}
@@ -4583,6 +4598,7 @@ const BRNNOMarketplace = () => {
                 </div>
             )}
         </div>
+        </Elements>
     );
 };
 
