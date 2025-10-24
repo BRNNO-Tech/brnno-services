@@ -1326,7 +1326,9 @@ const BookingModal = memo(({
     bookingStep,
     setBookingStep,
     bookingData,
-    setBookingData
+    setBookingData,
+    userVehicles,
+    setShowAddVehicle
 }) => {
     console.log('BookingModal re-rendered'); // Debug log
 
@@ -3936,6 +3938,8 @@ const BRNNOMarketplace = () => {
                 setBookingStep={setBookingStep}
                 bookingData={bookingData}
                 setBookingData={setBookingData}
+                userVehicles={userVehicles}
+                setShowAddVehicle={setShowAddVehicle}
             />
             {showProviderModal && (
                 <ProviderApplicationModal
