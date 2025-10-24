@@ -2222,6 +2222,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     // Save to providers collection
                                     const docRef = await addDoc(collection(db, 'providers'), providerApplication);
                                     console.log('Provider application saved with ID:', docRef.id);
+                                    console.log('Provider application data:', providerApplication);
 
                                     // Update user's account type to provider in users collection
                                     await updateDoc(doc(db, 'users', auth.currentUser.uid), {
@@ -3349,6 +3350,15 @@ const BRNNOMarketplace = () => {
         const loadProviders = async () => {
             try {
                 setProvidersLoading(true);
+                
+                // First, let's see what's actually in the providers collection
+                const allProvidersQuery = query(collection(db, 'providers'));
+                const allProvidersSnapshot = await getDocs(allProvidersQuery);
+                console.log('All providers in collection:', allProvidersSnapshot.size);
+                allProvidersSnapshot.forEach((doc) => {
+                    console.log('Provider doc:', doc.id, doc.data());
+                });
+                
                 const providersQuery = query(
                     collection(db, 'providers'),
                     where('status', '==', 'approved') // Only show approved providers
@@ -3378,6 +3388,8 @@ const BRNNOMarketplace = () => {
 
                 setRealProviders(providers);
                 console.log('Loaded providers:', providers);
+                console.log('Number of providers found:', providers.length);
+                console.log('Provider query status:', providersQuery);
             } catch (error) {
                 console.error('Error loading providers:', error);
             } finally {
