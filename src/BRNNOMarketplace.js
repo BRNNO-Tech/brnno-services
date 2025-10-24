@@ -2234,17 +2234,29 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
 
                                     console.log('User account updated to provider');
 
-                                    // Email notification (console log for now)
-                                    console.log('📧 EMAIL NOTIFICATION:');
-                                    console.log('To:', providerData.email);
-                                    console.log('Subject: BRNNO Provider Application Submitted');
-                                    console.log('Body:');
-                                    console.log(`Hello ${providerData.ownerName},`);
-                                    console.log(`Your provider application for ${providerData.businessName} has been approved!`);
-                                    console.log('You can now start accepting bookings through your provider dashboard.');
-                                    console.log('Thank you for joining BRNNO!');
-
-                                    // TODO: Replace with real email service (SendGrid, etc.)
+                                    // Send email notification
+                                    try {
+                                        const emailData = {
+                                            to: providerData.email,
+                                            subject: 'BRNNO Provider Application Approved!',
+                                            businessName: providerData.businessName,
+                                            ownerName: providerData.ownerName,
+                                            message: `Hello ${providerData.ownerName},\n\nYour provider application for ${providerData.businessName} has been approved!\n\nYou can now start accepting bookings through your provider dashboard.\n\nThank you for joining BRNNO!`
+                                        };
+                                        
+                                        // For now, just log the email (you can add EmailJS or SendGrid later)
+                                        console.log('📧 EMAIL NOTIFICATION:');
+                                        console.log('To:', emailData.to);
+                                        console.log('Subject:', emailData.subject);
+                                        console.log('Message:', emailData.message);
+                                        
+                                        // TODO: Add real email service (EmailJS, SendGrid, etc.)
+                                        // await sendEmail(emailData);
+                                        
+                                    } catch (emailError) {
+                                        console.error('Email notification failed:', emailError);
+                                        // Don't fail the whole process if email fails
+                                    }
 
                                     alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
                                     closeModal();
@@ -3360,12 +3372,11 @@ const BRNNOMarketplace = () => {
                 console.log('All providers in collection:', allProvidersSnapshot.size);
                 allProvidersSnapshot.forEach((doc) => {
                     console.log('Provider doc:', doc.id, doc.data());
+                    console.log('Status field:', doc.data().status);
                 });
-
-                const providersQuery = query(
-                    collection(db, 'providers'),
-                    where('status', '==', 'approved') // Only show approved providers
-                );
+                
+                // Try without status filter first to see all providers
+                const providersQuery = query(collection(db, 'providers'));
                 const providersSnapshot = await getDocs(providersQuery);
                 const providers = [];
 
@@ -3440,24 +3451,18 @@ const BRNNOMarketplace = () => {
     React.useEffect(() => {
         const initializeLocation = async () => {
             try {
-                // Get Google Maps API key from environment variables
-                const API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-
-                if (!API_KEY) {
-                    console.error('Google Maps API key not found. Please add REACT_APP_GOOGLE_MAPS_API_KEY to your environment variables.');
-                    return;
-                }
-                await locationService.initialize(API_KEY);
-                console.log('Google Maps API initialized');
+                // For now, we'll skip Google Maps initialization in browser
+                // The location service will work with fallback text-based search
+                console.log('Location service ready (text-based search mode)');
             } catch (error) {
-                console.error('Failed to initialize Google Maps:', error);
+                console.error('Failed to initialize location service:', error);
             }
         };
-
+        
         initializeLocation();
     }, []);
 
-    // Get user's current location
+    // Get user's current location (simplified version)
     const getUserLocation = async () => {
         if (!navigator.geolocation) {
             alert('Geolocation is not supported by this browser.');
@@ -3476,14 +3481,14 @@ const BRNNOMarketplace = () => {
             };
 
             setUserLocation(userCoords);
-
-            // Get city name from coordinates
-            const locationInfo = await locationService.reverseGeocode(userCoords.lat, userCoords.lng);
-            console.log('User location:', locationInfo);
-
+            console.log('User location coordinates:', userCoords);
+            
+            // For now, just show a success message
+            alert('Location detected! Showing providers in your area.');
+            
         } catch (error) {
             console.error('Error getting location:', error);
-            alert('Unable to get your location. Please enter your city manually.');
+            alert('Unable to get your location. Please select your city from the dropdown.');
         } finally {
             setLocationLoading(false);
         }

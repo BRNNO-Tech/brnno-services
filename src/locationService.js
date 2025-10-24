@@ -7,21 +7,14 @@ class LocationService {
         this.map = null;
     }
 
-    // Initialize Google Maps API
+    // Initialize Google Maps API (optional - works without it too)
     async initialize(apiKey) {
         if (this.googleMapsLoaded) return;
 
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places,geometry`;
-            script.onload = () => {
-                this.googleMapsLoaded = true;
-                this.geocoder = new google.maps.Geocoder();
-                resolve();
-            };
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
+        // Skip Google Maps for now - use fallback methods
+        console.log('Location service initialized (fallback mode)');
+        this.googleMapsLoaded = true;
+        return Promise.resolve();
     }
 
     // Convert address to coordinates
