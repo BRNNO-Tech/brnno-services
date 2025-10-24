@@ -2600,7 +2600,7 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                 }}
                                 className="px-8 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-bold transition-colors"
                             >
-                                Join Waitlist
+                                Book Now
                             </button>
                         </div>
                     </div>
