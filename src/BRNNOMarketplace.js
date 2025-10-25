@@ -11,6 +11,69 @@ import paymentService from './paymentService';
 import StripeCardInput from './StripeCardInput';
 import config from './config';
 
+// Check if provider has availability for the requested date/time
+const checkProviderAvailability = async (providerId, date, time) => {
+    try {
+        // Get provider data
+        const providerDoc = await getDoc(doc(db, 'providers', providerId));
+        const providerData = providerDoc.data();
+
+        // STEP 1: Check if date is blocked
+        if (providerData?.dateOverrides) {
+            // Check each block to see if selected date falls within range
+            for (const [blockId, block] of Object.entries(providerData.dateOverrides)) {
+                const selectedDate = new Date(date);
+                const blockStart = new Date(block.startDate);
+                const blockEnd = new Date(block.endDate);
+
+                // If selected date is within blocked range
+                if (selectedDate >= blockStart && selectedDate <= blockEnd) {
+                    return {
+                        available: false,
+                        reason: 'blocked',
+                        message: `Provider unavailable: ${block.reason || 'Time off scheduled'}`,
+                        spotsAvailable: 0,
+                        totalCapacity: providerData?.employeeCount || 1
+                    };
+                }
+            }
+        }
+
+        // STEP 2: Check employee capacity (existing logic)
+        const employeeCount = providerData?.employeeCount || 1;
+
+        const bookingsQuery = query(
+            collection(db, 'bookings'),
+            where('providerId', '==', providerId),
+            where('date', '==', date),
+            where('time', '==', time),
+            where('status', 'in', ['pending', 'confirmed'])
+        );
+
+        const bookingsSnapshot = await getDocs(bookingsQuery);
+        const currentBookings = bookingsSnapshot.size;
+
+        const spotsAvailable = employeeCount - currentBookings;
+
+        return {
+            available: spotsAvailable > 0,
+            reason: spotsAvailable > 0 ? 'available' : 'capacity',
+            message: spotsAvailable > 0 ? 'Available' : `All ${employeeCount} detailers are already scheduled`,
+            spotsAvailable: spotsAvailable,
+            totalCapacity: employeeCount
+        };
+    } catch (error) {
+        console.error('Error checking availability:', error);
+        return {
+            available: true,
+            reason: 'error',
+            message: 'Available',
+            spotsAvailable: 1,
+            totalCapacity: 1
+        }; // Fail open
+    }
+};
+
 // AdminDashboard component
 const AdminDashboard = ({ showDashboard, setShowDashboard }) => {
     console.log('AdminDashboard rendered, showDashboard:', showDashboard);
@@ -1784,7 +1847,20 @@ const BookingModal = memo(({
                             <button
                                 onClick={async () => {
                                     try {
-                                        // Save booking to Firebase
+                                        // CHECK AVAILABILITY FIRST
+                                        const availability = await checkProviderAvailability(
+                                            bookingData.provider?.id,
+                                            bookingData.date,
+                                            bookingData.time
+                                        );
+
+                                        if (!availability.available) {
+                                            alert(availability.message); // Now uses the custom message
+                                            setProcessingPayment(false);
+                                            return; // Don't save the booking
+                                        }
+
+                                        // If available, proceed with booking
                                         const booking = {
                                             customerId: auth.currentUser?.uid,
                                             customerEmail: auth.currentUser?.email,
@@ -2545,7 +2621,19 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                         status: 'approved', // Auto-approve for now
                                         submittedAt: serverTimestamp(),
                                         userId: userId,
-                                        services: defaultServices // Include default services
+                                        services: defaultServices, // Include default services
+                                        // Include new calendar fields
+                                        employeeCount: providerData.employeeCount || 1,
+                                        defaultAvailability: providerData.defaultAvailability || {
+                                            monday: { start: "10:00", end: "18:00", enabled: true },
+                                            tuesday: { start: "10:00", end: "18:00", enabled: true },
+                                            wednesday: { start: "10:00", end: "18:00", enabled: true },
+                                            thursday: { start: "10:00", end: "18:00", enabled: true },
+                                            friday: { start: "10:00", end: "18:00", enabled: true },
+                                            saturday: { start: "10:00", end: "18:00", enabled: true },
+                                            sunday: { start: null, end: null, enabled: false }
+                                        },
+                                        dateOverrides: providerData.dateOverrides || {}
                                     };
 
                                     console.log('Submitting provider application:', providerApplication);
@@ -3221,6 +3309,36 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                         }
                     }
 
+                    // Also load calendar data from providers collection
+                    const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                    const providerSnapshot = await getDocs(providerQuery);
+                    if (!providerSnapshot.empty) {
+                        const providerDoc = providerSnapshot.docs[0];
+                        const providerData = providerDoc.data();
+
+                        // Update providerInfo with calendar data from providers collection
+                        setProviderInfo(prev => ({
+                            ...prev,
+                            id: providerDoc.id,
+                            employeeCount: providerData.employeeCount || prev.employeeCount || 1,
+                            defaultAvailability: providerData.defaultAvailability || prev.defaultAvailability || {
+                                monday: { start: "10:00", end: "18:00", enabled: true },
+                                tuesday: { start: "10:00", end: "18:00", enabled: true },
+                                wednesday: { start: "10:00", end: "18:00", enabled: true },
+                                thursday: { start: "10:00", end: "18:00", enabled: true },
+                                friday: { start: "10:00", end: "18:00", enabled: true },
+                                saturday: { start: "10:00", end: "18:00", enabled: true },
+                                sunday: { start: null, end: null, enabled: false }
+                            },
+                            dateOverrides: providerData.dateOverrides || prev.dateOverrides || {}
+                        }));
+
+                        console.log('Loaded provider calendar data:', {
+                            employeeCount: providerData.employeeCount,
+                            defaultAvailability: providerData.defaultAvailability
+                        });
+                    }
+
                     // Load bookings
                     const bookingsQuery = query(
                         collection(db, 'bookings'),
@@ -3642,12 +3760,264 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
 
                         {/* Calendar Tab */}
                         {dashboardTab === 'calendar' && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                                <h3 className="text-xl font-bold text-gray-800 mb-4">Schedule & Availability</h3>
-                                <p className="text-gray-600 mb-6">Calendar integration coming soon! Manage your availability and block off time.</p>
-                                <div className="bg-gray-50 rounded-lg p-12 text-center">
-                                    <div className="text-6xl mb-4">📆</div>
-                                    <p className="text-gray-600">Calendar feature in development</p>
+                            <div className="space-y-6">
+                                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                    <h3 className="text-xl font-bold text-gray-800 mb-4">Team & Availability Settings</h3>
+
+                                    {/* Employee Count */}
+                                    <div className="mb-6">
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Number of Employees</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="20"
+                                            value={providerInfo?.employeeCount || 1}
+                                            onChange={(e) => {
+                                                const newCount = parseInt(e.target.value);
+                                                if (auth.currentUser) {
+                                                    updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                        employeeCount: newCount
+                                                    });
+                                                    updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                        employeeCount: newCount
+                                                    });
+                                                    setProviderInfo(prev => ({ ...prev, employeeCount: newCount }));
+                                                }
+                                            }}
+                                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">This affects how many bookings you can handle simultaneously</p>
+                                    </div>
+
+                                    {/* Default Availability */}
+                                    <div className="mb-6">
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-4">Default Weekly Schedule</h4>
+                                        <div className="space-y-3">
+                                            {Object.entries(providerInfo?.defaultAvailability || {
+                                                monday: { start: "10:00", end: "18:00", enabled: true },
+                                                tuesday: { start: "10:00", end: "18:00", enabled: true },
+                                                wednesday: { start: "10:00", end: "18:00", enabled: true },
+                                                thursday: { start: "10:00", end: "18:00", enabled: true },
+                                                friday: { start: "10:00", end: "18:00", enabled: true },
+                                                saturday: { start: "10:00", end: "18:00", enabled: true },
+                                                sunday: { start: null, end: null, enabled: false }
+                                            }).map(([day, schedule]) => (
+                                                <div key={day} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                                                    <div className="w-20 text-sm font-medium text-gray-700 capitalize">{day}</div>
+                                                    <label className="flex items-center gap-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={schedule.enabled}
+                                                            onChange={(e) => {
+                                                                const newAvailability = {
+                                                                    ...providerInfo?.defaultAvailability,
+                                                                    [day]: { ...schedule, enabled: e.target.checked }
+                                                                };
+                                                                if (auth.currentUser) {
+                                                                    updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                        defaultAvailability: newAvailability
+                                                                    });
+                                                                    updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                        defaultAvailability: newAvailability
+                                                                    });
+                                                                    setProviderInfo(prev => ({ ...prev, defaultAvailability: newAvailability }));
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 text-cyan-600 border-gray-300 rounded focus:ring-cyan-500"
+                                                        />
+                                                        <span className="text-sm text-gray-600">Available</span>
+                                                    </label>
+                                                    {schedule.enabled && (
+                                                        <div className="flex items-center gap-2">
+                                                            <input
+                                                                type="time"
+                                                                value={schedule.start}
+                                                                onChange={(e) => {
+                                                                    const newAvailability = {
+                                                                        ...providerInfo?.defaultAvailability,
+                                                                        [day]: { ...schedule, start: e.target.value }
+                                                                    };
+                                                                    if (auth.currentUser) {
+                                                                        updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                            defaultAvailability: newAvailability
+                                                                        });
+                                                                        updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                            defaultAvailability: newAvailability
+                                                                        });
+                                                                        setProviderInfo(prev => ({ ...prev, defaultAvailability: newAvailability }));
+                                                                    }
+                                                                }}
+                                                                className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                                            />
+                                                            <span className="text-gray-500">to</span>
+                                                            <input
+                                                                type="time"
+                                                                value={schedule.end}
+                                                                onChange={(e) => {
+                                                                    const newAvailability = {
+                                                                        ...providerInfo?.defaultAvailability,
+                                                                        [day]: { ...schedule, end: e.target.value }
+                                                                    };
+                                                                    if (auth.currentUser) {
+                                                                        updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                            defaultAvailability: newAvailability
+                                                                        });
+                                                                        updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                            defaultAvailability: newAvailability
+                                                                        });
+                                                                        setProviderInfo(prev => ({ ...prev, defaultAvailability: newAvailability }));
+                                                                    }
+                                                                }}
+                                                                className="px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Date Overrides */}
+                                    <div>
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-4">Date Overrides</h4>
+                                        <p className="text-sm text-gray-600 mb-4">Block specific dates or set custom hours for holidays, vacations, etc.</p>
+
+                                        {/* Current Date Overrides */}
+                                        <div className="space-y-3 mb-4">
+                                            {Object.entries(providerInfo?.dateOverrides || {}).length === 0 ? (
+                                                <div className="bg-gray-50 rounded-lg p-4">
+                                                    <p className="text-sm text-gray-500">No date overrides scheduled</p>
+                                                </div>
+                                            ) : (
+                                                Object.entries(providerInfo?.dateOverrides || {}).map(([id, block]) => (
+                                                    <div key={id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <p className="font-semibold text-gray-800">
+                                                                    {new Date(block.startDate).toLocaleDateString()} - {new Date(block.endDate).toLocaleDateString()}
+                                                                </p>
+                                                                <p className="text-sm text-gray-600">{block.reason}</p>
+                                                            </div>
+                                                            <button
+                                                                onClick={async () => {
+                                                                    if (confirm('Are you sure you want to remove this date override?')) {
+                                                                        try {
+                                                                            const updatedDateOverrides = { ...providerInfo?.dateOverrides };
+                                                                            delete updatedDateOverrides[id];
+
+                                                                            if (auth.currentUser) {
+                                                                                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                                    dateOverrides: updatedDateOverrides
+                                                                                });
+                                                                                await updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                                    dateOverrides: updatedDateOverrides
+                                                                                });
+                                                                                setProviderInfo(prev => ({ ...prev, dateOverrides: updatedDateOverrides }));
+
+                                                                                alert('Date override removed successfully!');
+                                                                            }
+                                                                        } catch (error) {
+                                                                            console.error('Error removing date override:', error);
+                                                                            alert('Failed to remove date override. Please try again.');
+                                                                        }
+                                                                    }
+                                                                }}
+                                                                className="text-red-600 hover:text-red-700 text-sm font-semibold"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {/* Quick Add Date Override */}
+                                        <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                            <h5 className="font-semibold text-blue-800 mb-3">Quick Add Date Override</h5>
+                                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-blue-700 mb-1">Start Date</label>
+                                                    <input
+                                                        type="date"
+                                                        id="quickStartDate"
+                                                        className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-blue-700 mb-1">End Date</label>
+                                                    <input
+                                                        type="date"
+                                                        id="quickEndDate"
+                                                        className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="mb-3">
+                                                <label className="block text-xs font-semibold text-blue-700 mb-1">Reason</label>
+                                                <input
+                                                    type="text"
+                                                    id="quickReason"
+                                                    placeholder="Vacation, holiday, etc."
+                                                    className="w-full px-2 py-1 text-sm border border-blue-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={async () => {
+                                                    const startDate = document.getElementById('quickStartDate').value;
+                                                    const endDate = document.getElementById('quickEndDate').value;
+                                                    const reason = document.getElementById('quickReason').value;
+
+                                                    if (!startDate || !endDate) {
+                                                        alert('Please select both start and end dates.');
+                                                        return;
+                                                    }
+
+                                                    if (new Date(startDate) > new Date(endDate)) {
+                                                        alert('Start date must be before end date.');
+                                                        return;
+                                                    }
+
+                                                    try {
+                                                        const newOverride = {
+                                                            startDate,
+                                                            endDate,
+                                                            reason: reason || 'Date override',
+                                                            createdAt: new Date().toISOString()
+                                                        };
+
+                                                        const updatedDateOverrides = {
+                                                            ...providerInfo?.dateOverrides,
+                                                            [Date.now().toString()]: newOverride
+                                                        };
+
+                                                        if (auth.currentUser) {
+                                                            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                dateOverrides: updatedDateOverrides
+                                                            });
+                                                            await updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                dateOverrides: updatedDateOverrides
+                                                            });
+                                                            setProviderInfo(prev => ({ ...prev, dateOverrides: updatedDateOverrides }));
+
+                                                            // Clear form
+                                                            document.getElementById('quickStartDate').value = '';
+                                                            document.getElementById('quickEndDate').value = '';
+                                                            document.getElementById('quickReason').value = '';
+
+                                                            alert('Date override added successfully!');
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error adding date override:', error);
+                                                        alert('Failed to add date override. Please try again.');
+                                                    }
+                                                }}
+                                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded text-sm font-semibold transition-colors"
+                                            >
+                                                Add Date Override
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -3879,7 +4249,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
             {/* Block Time Off Modal */}
             {showBlockTimeOff && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-6">
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-2xl font-bold text-gray-800">Block Time Off</h2>
@@ -3890,41 +4260,152 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                     ×
                                 </button>
                             </div>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
-                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {/* Add New Block */}
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold text-gray-800">Add Time Off</h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
+                                            <input
+                                                type="date"
+                                                id="blockStartDate"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700 mb-2">End Date</label>
+                                            <input
+                                                type="date"
+                                                id="blockEndDate"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">End Date</label>
-                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Reason (Optional)</label>
+                                        <textarea
+                                            id="blockReason"
+                                            placeholder="Vacation, personal time, etc."
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg h-20 resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
                                     </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Reason (Optional)</label>
-                                    <textarea
-                                        placeholder="Vacation, personal time, etc."
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg h-20 resize-none"
-                                    />
-                                </div>
-                                <div className="flex gap-3 pt-4">
                                     <button
-                                        onClick={() => setShowBlockTimeOff(false)}
-                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
-                                    >
-                                        Cancel
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            alert('Time off blocked successfully!');
-                                            setShowBlockTimeOff(false);
+                                        onClick={async () => {
+                                            const startDate = document.getElementById('blockStartDate').value;
+                                            const endDate = document.getElementById('blockEndDate').value;
+                                            const reason = document.getElementById('blockReason').value;
+
+                                            if (!startDate || !endDate) {
+                                                alert('Please select both start and end dates.');
+                                                return;
+                                            }
+
+                                            if (new Date(startDate) > new Date(endDate)) {
+                                                alert('Start date must be before end date.');
+                                                return;
+                                            }
+
+                                            try {
+                                                const newBlock = {
+                                                    startDate,
+                                                    endDate,
+                                                    reason: reason || 'Time off',
+                                                    createdAt: new Date().toISOString()
+                                                };
+
+                                                const updatedDateOverrides = {
+                                                    ...providerInfo?.dateOverrides,
+                                                    [Date.now().toString()]: newBlock
+                                                };
+
+                                                if (auth.currentUser) {
+                                                    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                        dateOverrides: updatedDateOverrides
+                                                    });
+                                                    await updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                        dateOverrides: updatedDateOverrides
+                                                    });
+                                                    setProviderInfo(prev => ({ ...prev, dateOverrides: updatedDateOverrides }));
+
+                                                    // Clear form
+                                                    document.getElementById('blockStartDate').value = '';
+                                                    document.getElementById('blockEndDate').value = '';
+                                                    document.getElementById('blockReason').value = '';
+
+                                                    alert('Time off blocked successfully!');
+                                                }
+                                            } catch (error) {
+                                                console.error('Error blocking time off:', error);
+                                                alert('Failed to block time off. Please try again.');
+                                            }
                                         }}
-                                        className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                        className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold transition-colors"
                                     >
-                                        Block Time
+                                        Block Time Off
                                     </button>
                                 </div>
+
+                                {/* Current Blocks */}
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold text-gray-800">Current Time Off</h3>
+                                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                                        {Object.entries(providerInfo?.dateOverrides || {}).length === 0 ? (
+                                            <p className="text-gray-500 text-sm">No time off scheduled</p>
+                                        ) : (
+                                            Object.entries(providerInfo?.dateOverrides || {}).map(([id, block]) => (
+                                                <div key={id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <p className="font-semibold text-gray-800">
+                                                                {new Date(block.startDate).toLocaleDateString()} - {new Date(block.endDate).toLocaleDateString()}
+                                                            </p>
+                                                            <p className="text-sm text-gray-600">{block.reason}</p>
+                                                        </div>
+                                                        <button
+                                                            onClick={async () => {
+                                                                if (confirm('Are you sure you want to remove this time off block?')) {
+                                                                    try {
+                                                                        const updatedDateOverrides = { ...providerInfo?.dateOverrides };
+                                                                        delete updatedDateOverrides[id];
+
+                                                                        if (auth.currentUser) {
+                                                                            await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                                                dateOverrides: updatedDateOverrides
+                                                                            });
+                                                                            await updateDoc(doc(db, 'providers', providerInfo?.id), {
+                                                                                dateOverrides: updatedDateOverrides
+                                                                            });
+                                                                            setProviderInfo(prev => ({ ...prev, dateOverrides: updatedDateOverrides }));
+
+                                                                            alert('Time off block removed successfully!');
+                                                                        }
+                                                                    } catch (error) {
+                                                                        console.error('Error removing time off block:', error);
+                                                                        alert('Failed to remove time off block. Please try again.');
+                                                                    }
+                                                                }
+                                                            }}
+                                                            className="text-red-600 hover:text-red-700 text-sm font-semibold"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-6 border-t border-gray-200 mt-6">
+                                <button
+                                    onClick={() => setShowBlockTimeOff(false)}
+                                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                >
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -4212,7 +4693,19 @@ const BRNNOMarketplace = () => {
         backgroundCheck: false,
         skipPayment: false,
         skipInsurance: false,
-        image: ''
+        image: '',
+        // New calendar fields
+        employeeCount: 1,
+        defaultAvailability: {
+            monday: { start: "10:00", end: "18:00", enabled: true },
+            tuesday: { start: "10:00", end: "18:00", enabled: true },
+            wednesday: { start: "10:00", end: "18:00", enabled: true },
+            thursday: { start: "10:00", end: "18:00", enabled: true },
+            friday: { start: "10:00", end: "18:00", enabled: true },
+            saturday: { start: "10:00", end: "18:00", enabled: true },
+            sunday: { start: null, end: null, enabled: false }
+        },
+        dateOverrides: {}
     });
     const [selectedProvider, setSelectedProvider] = useState(null);
     const [showProviderDetail, setShowProviderDetail] = useState(false);
