@@ -3103,7 +3103,6 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
     const [providerInfo, setProviderInfo] = useState(null);
     const [showUpdateServices, setShowUpdateServices] = useState(false);
     const [showBlockTimeOff, setShowBlockTimeOff] = useState(false);
-    const [showMessages, setShowMessages] = useState(false);
     const [services, setServices] = useState([
         { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', active: true },
         { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', active: true },
@@ -3640,12 +3639,6 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                         className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 rounded-xl p-6 font-bold transition-colors"
                                     >
                                         📆 Block Time Off
-                                    </button>
-                                    <button
-                                        onClick={() => setShowMessages(true)}
-                                        className="bg-white border-2 border-purple-500 text-purple-600 hover:bg-purple-50 rounded-xl p-6 font-bold transition-colors"
-                                    >
-                                        💬 View Messages
                                     </button>
                                 </div>
                             </div>
@@ -4487,78 +4480,6 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                 </div>
             )}
 
-            {/* View Messages Modal */}
-            {showMessages && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-gray-800">Messages</h2>
-                                <button
-                                    onClick={() => setShowMessages(false)}
-                                    className="text-gray-500 hover:text-gray-700 text-2xl"
-                                >
-                                    ×
-                                </button>
-                            </div>
-                            <div className="space-y-4">
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                            J
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-800">John Smith</h4>
-                                            <p className="text-sm text-gray-600">2 hours ago</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-700">Hi! I'm interested in booking a full detail for my car. What's your availability this weekend?</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                            S
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-800">Sarah Johnson</h4>
-                                            <p className="text-sm text-gray-600">1 day ago</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-700">Thank you for the excellent service! My car looks amazing. I'll definitely book again.</p>
-                                </div>
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                    <div className="flex items-center gap-3 mb-2">
-                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                                            M
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-800">Mike Davis</h4>
-                                            <p className="text-sm text-gray-600">3 days ago</p>
-                                        </div>
-                                    </div>
-                                    <p className="text-gray-700">Can you provide a quote for ceramic coating? I have a 2020 BMW M3.</p>
-                                </div>
-                                <div className="flex gap-3 pt-4">
-                                    <button
-                                        onClick={() => setShowMessages(false)}
-                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
-                                    >
-                                        Close
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            alert('All messages marked as read!');
-                                        }}
-                                        className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-lg font-semibold transition-colors"
-                                    >
-                                        Mark All Read
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Edit Service Modal */}
             {editingService && (
