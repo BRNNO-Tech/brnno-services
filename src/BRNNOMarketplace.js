@@ -826,6 +826,8 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         phone: '',
         businessName: ''
     });
+    const [profileImage, setProfileImage] = useState(null);
+    const [showImageUpload, setShowImageUpload] = useState(false);
 
     // Check authentication and load user data when panel opens
     React.useEffect(() => {
@@ -868,6 +870,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                         phone: data.phone || '',
                         businessName: data.businessName || ''
                     });
+                    setProfileImage(data.profileImage || null);
                 } else {
                     // Create user document if it doesn't exist
                     await setDoc(doc(db, 'users', user.uid), {
@@ -890,6 +893,37 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         } catch (error) {
             console.error('Error loading user data:', error);
             setError('Failed to load user data.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleImageUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setProfileImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const saveImage = async () => {
+        try {
+            setLoading(true);
+            const user = auth.currentUser;
+            if (user && profileImage) {
+                await updateDoc(doc(db, 'users', user.uid), {
+                    profileImage: profileImage
+                });
+                setUserData(prev => ({ ...prev, profileImage: profileImage }));
+                setSuccess('Profile image updated successfully!');
+                setShowImageUpload(false);
+            }
+        } catch (error) {
+            console.error('Error saving image:', error);
+            setError('Failed to save image.');
         } finally {
             setLoading(false);
         }
@@ -1016,10 +1050,21 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                     {/* Profile Picture */}
                     <div className="flex items-center gap-3 sm:gap-4">
                         <div className="relative">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold">
-                                {userData ? `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}` : 'U'}
-                            </div>
-                            <button className="absolute bottom-0 right-0 bg-white text-cyan-600 p-1 rounded-full hover:bg-cyan-50 transition-colors touch-manipulation">
+                            {profileImage ? (
+                                <img
+                                    src={profileImage}
+                                    alt="Profile"
+                                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-white/20"
+                                />
+                            ) : (
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold">
+                                    {userData ? `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}` : 'U'}
+                                </div>
+                            )}
+                            <button
+                                onClick={() => setShowImageUpload(true)}
+                                className="absolute bottom-0 right-0 bg-white text-cyan-600 p-1 rounded-full hover:bg-cyan-50 transition-colors touch-manipulation"
+                            >
                                 <Camera size={14} />
                             </button>
                         </div>
@@ -1291,6 +1336,84 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                     </div>
                 </div>
             )}
+
+            {/* Image Upload Modal */}
+            {showImageUpload && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-gray-800">Update Profile Picture</h2>
+                                <button
+                                    onClick={() => setShowImageUpload(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="text-center">
+                                    {profileImage ? (
+                                        <img
+                                            src={profileImage}
+                                            alt="Profile preview"
+                                            className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-2 border-gray-200"
+                                        />
+                                    ) : (
+                                        <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center text-3xl font-bold text-gray-400 mx-auto mb-4">
+                                            {userData ? `${formData.firstName.charAt(0)}${formData.lastName.charAt(0)}` : 'U'}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Choose Image</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">JPG, PNG, or GIF. Max 5MB.</p>
+                                </div>
+
+                                {error && (
+                                    <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">
+                                        {error}
+                                    </div>
+                                )}
+
+                                {success && (
+                                    <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                                        {success}
+                                    </div>
+                                )}
+
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => {
+                                            setShowImageUpload(false);
+                                            setError('');
+                                            setSuccess('');
+                                        }}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={saveImage}
+                                        disabled={!profileImage || loading}
+                                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold transition-colors disabled:bg-gray-400"
+                                    >
+                                        {loading ? 'Saving...' : 'Save Image'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
@@ -1303,17 +1426,19 @@ const BookingModal = memo(({
     bookingData,
     setBookingData,
     userVehicles,
-    setShowAddVehicle
+    setShowAddVehicle,
+    selectedProvider
 }) => {
     console.log('BookingModal re-rendered'); // Debug log
 
-    const services = [
-        { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior wash and interior vacuum' },
-        { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean interior, seats, carpets, dashboard' },
-        { id: 3, name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar, polish, wax' },
-        { id: 4, name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing' },
-        { id: 5, name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction and polish' },
-        { id: 6, name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional ceramic coating with warranty' }
+    // Use provider's services if available, otherwise fallback to default
+    const services = selectedProvider?.services?.filter(service => service.active === true) || [
+        { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior wash and interior vacuum', active: true },
+        { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean interior, seats, carpets, dashboard', active: true },
+        { id: 3, name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar, polish, wax', active: true },
+        { id: 4, name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing', active: true },
+        { id: 5, name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction and polish', active: true },
+        { id: 6, name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional ceramic coating with warranty', active: true }
     ];
 
     const timeSlots = [
@@ -2363,18 +2488,64 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                         return;
                                     }
 
+                                    let userId;
+
                                     if (!auth.currentUser) {
-                                        alert('You must be signed in to submit an application. Please sign in and try again.');
-                                        setIsSubmitting(false);
-                                        return;
+                                        // Create user account for provider signup
+                                        try {
+                                            // Generate a temporary password for the user
+                                            const tempPassword = Math.random().toString(36).slice(-8) + '!A1';
+
+                                            const userCredential = await createUserWithEmailAndPassword(auth, providerData.email, tempPassword);
+                                            userId = userCredential.user.uid;
+
+                                            // Create user profile in Firestore
+                                            await setDoc(doc(db, 'users', userId), {
+                                                uid: userId,
+                                                email: providerData.email,
+                                                displayName: providerData.ownerName,
+                                                firstName: providerData.ownerName.split(' ')[0],
+                                                lastName: providerData.ownerName.split(' ').slice(1).join(' '),
+                                                phone: providerData.phone,
+                                                businessName: providerData.businessName,
+                                                accountType: 'provider',
+                                                createdAt: serverTimestamp(),
+                                                role: 'user',
+                                                tempPassword: tempPassword // Store temp password for email notification
+                                            });
+
+                                            console.log('User account created for provider signup');
+                                        } catch (error) {
+                                            console.error('Error creating user account:', error);
+                                            if (error.code === 'auth/email-already-in-use') {
+                                                alert('An account with this email already exists. Please sign in first and then apply as a provider.');
+                                            } else {
+                                                alert('Error creating account. Please try again.');
+                                            }
+                                            setIsSubmitting(false);
+                                            return;
+                                        }
+                                    } else {
+                                        userId = auth.currentUser.uid;
                                     }
+
+                                    // Default services for new providers
+                                    const defaultServices = [
+                                        { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', active: true },
+                                        { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', active: true },
+                                        { id: 3, name: 'Exterior Detail', price: 150, duration: '2.5 hours', active: true },
+                                        { id: 4, name: 'Full Detail', price: 200, duration: '4 hours', active: true },
+                                        { id: 5, name: 'Paint Correction', price: 400, duration: '6 hours', active: false },
+                                        { id: 6, name: 'Ceramic Coating', price: 800, duration: '8 hours', active: true }
+                                    ];
 
                                     // Save provider application to Firebase
                                     const providerApplication = {
                                         ...providerData,
                                         status: 'approved', // Auto-approve for now
                                         submittedAt: serverTimestamp(),
-                                        userId: auth.currentUser.uid
+                                        userId: userId,
+                                        services: defaultServices // Include default services
                                     };
 
                                     console.log('Submitting provider application:', providerApplication);
@@ -2385,22 +2556,39 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     console.log('Provider application data:', providerApplication);
 
                                     // Update user's account type to provider in users collection
-                                    await updateDoc(doc(db, 'users', auth.currentUser.uid), {
-                                        accountType: 'provider',
-                                        providerApplicationId: docRef.id,
-                                        businessName: providerData.businessName
-                                    });
+                                    if (auth.currentUser) {
+                                        await updateDoc(doc(db, 'users', userId), {
+                                            accountType: 'provider',
+                                            providerApplicationId: docRef.id,
+                                            businessName: providerData.businessName
+                                        });
+                                    } else {
+                                        // Update the newly created user account
+                                        await updateDoc(doc(db, 'users', userId), {
+                                            accountType: 'provider',
+                                            providerApplicationId: docRef.id
+                                        });
+                                    }
 
                                     console.log('User account updated to provider');
 
                                     // Send email notification
                                     try {
+                                        let message;
+                                        if (!auth.currentUser) {
+                                            // New user - include login credentials
+                                            message = `Hello ${providerData.ownerName},\n\nYour provider application for ${providerData.businessName} has been approved!\n\nYour login credentials:\nEmail: ${providerData.email}\nTemporary Password: [Check your email for the temporary password]\n\nPlease sign in and change your password in your profile settings.\n\nYou can now start accepting bookings through your provider dashboard.\n\nThank you for joining BRNNO!`;
+                                        } else {
+                                            // Existing user
+                                            message = `Hello ${providerData.ownerName},\n\nYour provider application for ${providerData.businessName} has been approved!\n\nYou can now start accepting bookings through your provider dashboard.\n\nThank you for joining BRNNO!`;
+                                        }
+
                                         const emailData = {
                                             to: providerData.email,
                                             subject: 'BRNNO Provider Application Approved!',
                                             businessName: providerData.businessName,
                                             ownerName: providerData.ownerName,
-                                            message: `Hello ${providerData.ownerName},\n\nYour provider application for ${providerData.businessName} has been approved!\n\nYou can now start accepting bookings through your provider dashboard.\n\nThank you for joining BRNNO!`
+                                            message: message
                                         };
 
                                         // For now, just log the email (you can add EmailJS or SendGrid later)
@@ -2417,7 +2605,20 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                         // Don't fail the whole process if email fails
                                     }
 
-                                    alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
+                                    if (!auth.currentUser) {
+                                        alert('Application approved! Your account has been created. Please check your email for login credentials and sign in to access your provider dashboard.');
+                                    } else {
+                                        alert('Application approved! You can now start accepting bookings. Check your provider dashboard to get started.');
+                                        // Refresh userData to reflect the new provider status
+                                        try {
+                                            const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+                                            if (userDoc.exists()) {
+                                                setUserData(userDoc.data());
+                                            }
+                                        } catch (error) {
+                                            console.error('Error refreshing user data:', error);
+                                        }
+                                    }
                                     closeModal();
                                 } catch (error) {
                                     console.error('Error submitting provider application:', error);
@@ -2610,14 +2811,14 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                         <div className="space-y-4">
                             <h3 className="text-xl font-bold text-gray-800 mb-4">Services & Pricing</h3>
 
-                            {[
-                                { name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior hand wash and interior vacuum' },
-                                { name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean all interior surfaces, carpets, and upholstery' },
-                                { name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar treatment, polish, and wax' },
-                                { name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing service' },
-                                { name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction to remove swirls and scratches' },
-                                { name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional grade ceramic coating with 5-year warranty' }
-                            ].map((service, idx) => (
+                            {(provider.services && provider.services.length > 0 ? provider.services.filter(service => service.active === true) : [
+                                { name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior hand wash and interior vacuum', active: true },
+                                { name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean all interior surfaces, carpets, and upholstery', active: true },
+                                { name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar treatment, polish, and wax', active: true },
+                                { name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing service', active: true },
+                                { name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction to remove swirls and scratches', active: true },
+                                { name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional grade ceramic coating with 5-year warranty', active: true }
+                            ]).map((service, idx) => (
                                 <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-cyan-500 transition-colors">
                                     <div className="flex items-start justify-between mb-2">
                                         <div>
@@ -2631,6 +2832,7 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                                     </div>
                                     <button
                                         onClick={() => {
+                                            setBookingData(prev => ({ ...prev, service: service }));
                                             setShowModal(false);
                                             onBookNow();
                                         }}
@@ -2784,13 +2986,186 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
     );
 });
 
-const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
+const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProviderRefresh }) => {
     const [dashboardTab, setDashboardTab] = useState('overview');
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(true);
     const [realBookings, setRealBookings] = useState([]);
     const [bookingsLoading, setBookingsLoading] = useState(true);
     const [providerInfo, setProviderInfo] = useState(null);
+    const [showUpdateServices, setShowUpdateServices] = useState(false);
+    const [showBlockTimeOff, setShowBlockTimeOff] = useState(false);
+    const [showMessages, setShowMessages] = useState(false);
+    const [services, setServices] = useState([
+        { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', active: true },
+        { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', active: true },
+        { id: 3, name: 'Exterior Detail', price: 150, duration: '2.5 hours', active: true },
+        { id: 4, name: 'Full Detail', price: 200, duration: '4 hours', active: true },
+        { id: 5, name: 'Paint Correction', price: 400, duration: '6 hours', active: false },
+        { id: 6, name: 'Ceramic Coating', price: 800, duration: '8 hours', active: true }
+    ]);
+    const [editingService, setEditingService] = useState(null);
+    const [showAddService, setShowAddService] = useState(false);
+
+    // Service management functions
+    const toggleServiceActive = async (serviceId) => {
+        try {
+            // Update local state
+            const updatedServices = services.map(service =>
+                service.id === serviceId
+                    ? { ...service, active: !service.active }
+                    : service
+            );
+            setServices(updatedServices);
+
+            // Save to database - save to both users and providers collections
+            if (auth.currentUser) {
+                // Save to users collection for dashboard
+                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                    services: updatedServices
+                });
+
+                // Also save to providers collection for public access
+                const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                const providerSnapshot = await getDocs(providerQuery);
+                if (!providerSnapshot.empty) {
+                    const providerDoc = providerSnapshot.docs[0];
+                    await updateDoc(providerDoc.ref, {
+                        services: updatedServices
+                    });
+                    console.log('Services saved to providers collection:', updatedServices);
+                } else {
+                    console.log('No provider document found for user:', auth.currentUser.uid);
+                }
+
+                console.log('Services updated in database');
+
+                // Trigger provider data refresh
+                if (triggerProviderRefresh) {
+                    triggerProviderRefresh();
+                }
+            }
+        } catch (error) {
+            console.error('Error updating services:', error);
+            // Revert local state on error
+            setServices(services);
+            alert('Failed to update service. Please try again.');
+        }
+    };
+
+    const editService = (service) => {
+        setEditingService(service);
+    };
+
+    const saveServiceEdit = async (updatedService) => {
+        try {
+            const updatedServices = services.map(service =>
+                service.id === updatedService.id ? updatedService : service
+            );
+            setServices(updatedServices);
+
+            // Save to database - save to both users and providers collections
+            if (auth.currentUser) {
+                // Save to users collection for dashboard
+                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                    services: updatedServices
+                });
+
+                // Also save to providers collection for public access
+                const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                const providerSnapshot = await getDocs(providerQuery);
+                if (!providerSnapshot.empty) {
+                    const providerDoc = providerSnapshot.docs[0];
+                    await updateDoc(providerDoc.ref, {
+                        services: updatedServices
+                    });
+                }
+
+                console.log('Service edit saved to database');
+
+                // Trigger provider data refresh
+                if (triggerProviderRefresh) {
+                    triggerProviderRefresh();
+                }
+            }
+            setEditingService(null);
+        } catch (error) {
+            console.error('Error saving service edit:', error);
+            alert('Failed to save service changes. Please try again.');
+        }
+    };
+
+    const addNewService = async (newService) => {
+        try {
+            const serviceWithId = { ...newService, id: Date.now() };
+            const updatedServices = [...services, serviceWithId];
+            setServices(updatedServices);
+
+            // Save to database - save to both users and providers collections
+            if (auth.currentUser) {
+                // Save to users collection for dashboard
+                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                    services: updatedServices
+                });
+
+                // Also save to providers collection for public access
+                const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                const providerSnapshot = await getDocs(providerQuery);
+                if (!providerSnapshot.empty) {
+                    const providerDoc = providerSnapshot.docs[0];
+                    await updateDoc(providerDoc.ref, {
+                        services: updatedServices
+                    });
+                }
+
+                console.log('New service added to database');
+
+                // Trigger provider data refresh
+                if (triggerProviderRefresh) {
+                    triggerProviderRefresh();
+                }
+            }
+            setShowAddService(false);
+        } catch (error) {
+            console.error('Error adding service:', error);
+            alert('Failed to add service. Please try again.');
+        }
+    };
+
+    const deleteService = async (serviceId) => {
+        try {
+            const updatedServices = services.filter(service => service.id !== serviceId);
+            setServices(updatedServices);
+
+            // Save to database - save to both users and providers collections
+            if (auth.currentUser) {
+                // Save to users collection for dashboard
+                await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                    services: updatedServices
+                });
+
+                // Also save to providers collection for public access
+                const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                const providerSnapshot = await getDocs(providerQuery);
+                if (!providerSnapshot.empty) {
+                    const providerDoc = providerSnapshot.docs[0];
+                    await updateDoc(providerDoc.ref, {
+                        services: updatedServices
+                    });
+                }
+
+                console.log('Service deleted from database');
+
+                // Trigger provider data refresh
+                if (triggerProviderRefresh) {
+                    triggerProviderRefresh();
+                }
+            }
+        } catch (error) {
+            console.error('Error deleting service:', error);
+            alert('Failed to delete service. Please try again.');
+        }
+    };
 
     // Check authentication when dashboard opens
     React.useEffect(() => {
@@ -2837,7 +3212,13 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                     // Load provider info from users collection
                     const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
                     if (userDoc.exists()) {
-                        setProviderInfo(userDoc.data());
+                        const userData = userDoc.data();
+                        setProviderInfo(userData);
+
+                        // Load services from database if they exist
+                        if (userData.services && userData.services.length > 0) {
+                            setServices(userData.services);
+                        }
                     }
 
                     // Load bookings
@@ -3110,13 +3491,22 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
 
                                 {/* Quick Actions */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <button className="bg-white border-2 border-cyan-500 text-cyan-600 hover:bg-cyan-50 rounded-xl p-6 font-bold transition-colors">
+                                    <button
+                                        onClick={() => setShowUpdateServices(true)}
+                                        className="bg-white border-2 border-cyan-500 text-cyan-600 hover:bg-cyan-50 rounded-xl p-6 font-bold transition-colors"
+                                    >
                                         📋 Update Services
                                     </button>
-                                    <button className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 rounded-xl p-6 font-bold transition-colors">
+                                    <button
+                                        onClick={() => setShowBlockTimeOff(true)}
+                                        className="bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50 rounded-xl p-6 font-bold transition-colors"
+                                    >
                                         📆 Block Time Off
                                     </button>
-                                    <button className="bg-white border-2 border-purple-500 text-purple-600 hover:bg-purple-50 rounded-xl p-6 font-bold transition-colors">
+                                    <button
+                                        onClick={() => setShowMessages(true)}
+                                        className="bg-white border-2 border-purple-500 text-purple-600 hover:bg-purple-50 rounded-xl p-6 font-bold transition-colors"
+                                    >
                                         💬 View Messages
                                     </button>
                                 </div>
@@ -3198,28 +3588,29 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
                                     <p className="text-gray-600">Manage your service offerings and pricing</p>
-                                    <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg font-bold transition-colors">
+                                    <button
+                                        onClick={() => setShowAddService(true)}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg font-bold transition-colors"
+                                    >
                                         + Add Service
                                     </button>
                                 </div>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                    {[
-                                        { name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', active: true },
-                                        { name: 'Interior Detail', price: 120, duration: '2 hours', active: true },
-                                        { name: 'Exterior Detail', price: 150, duration: '2.5 hours', active: true },
-                                        { name: 'Full Detail', price: 200, duration: '4 hours', active: true },
-                                        { name: 'Paint Correction', price: 400, duration: '6 hours', active: false },
-                                        { name: 'Ceramic Coating', price: 800, duration: '8 hours', active: true }
-                                    ].map((service, idx) => (
-                                        <div key={idx} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                                    {services.map((service) => (
+                                        <div key={service.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                                             <div className="flex items-start justify-between mb-3">
                                                 <div>
                                                     <h4 className="font-bold text-gray-800 text-lg">{service.name}</h4>
                                                     <p className="text-sm text-gray-600">{service.duration}</p>
                                                 </div>
                                                 <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input type="checkbox" checked={service.active} className="sr-only peer" readOnly />
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={service.active}
+                                                        onChange={() => toggleServiceActive(service.id)}
+                                                        className="sr-only peer"
+                                                    />
                                                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
                                                 </label>
                                             </div>
@@ -3228,9 +3619,20 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                                                     <p className="text-3xl font-bold text-gray-800">${service.price}</p>
                                                     <p className="text-xs text-gray-500 mt-1">You earn: ${(service.price * 0.85).toFixed(0)} (after 15% fee)</p>
                                                 </div>
-                                                <button className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm">
-                                                    Edit
-                                                </button>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => editService(service)}
+                                                        className="text-cyan-600 hover:text-cyan-700 font-semibold text-sm"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => deleteService(service.id)}
+                                                        className="text-red-600 hover:text-red-700 font-semibold text-sm"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
@@ -3411,6 +3813,360 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard }) => {
                     </div>
                 </div>
             </div>
+
+            {/* Update Services Modal */}
+            {showUpdateServices && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Update Services</h2>
+                                <button
+                                    onClick={() => setShowUpdateServices(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Available Services</label>
+                                    <div className="space-y-2">
+                                        {['Car Wash', 'Interior Cleaning', 'Waxing', 'Detailing', 'Paint Correction'].map(service => (
+                                            <label key={service} className="flex items-center">
+                                                <input type="checkbox" className="mr-3" defaultChecked />
+                                                <span className="text-gray-700">{service}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Service Pricing</label>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Basic Wash</label>
+                                            <input type="number" placeholder="$25" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-600 mb-1">Full Detail</label>
+                                            <input type="number" placeholder="$150" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setShowUpdateServices(false)}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            alert('Services updated successfully!');
+                                            setShowUpdateServices(false);
+                                        }}
+                                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Block Time Off Modal */}
+            {showBlockTimeOff && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Block Time Off</h2>
+                                <button
+                                    onClick={() => setShowBlockTimeOff(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Start Date</label>
+                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">End Date</label>
+                                        <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Reason (Optional)</label>
+                                    <textarea
+                                        placeholder="Vacation, personal time, etc."
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg h-20 resize-none"
+                                    />
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setShowBlockTimeOff(false)}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            alert('Time off blocked successfully!');
+                                            setShowBlockTimeOff(false);
+                                        }}
+                                        className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Block Time
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* View Messages Modal */}
+            {showMessages && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Messages</h2>
+                                <button
+                                    onClick={() => setShowMessages(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                            J
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold text-gray-800">John Smith</h4>
+                                            <p className="text-sm text-gray-600">2 hours ago</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-700">Hi! I'm interested in booking a full detail for my car. What's your availability this weekend?</p>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                            S
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold text-gray-800">Sarah Johnson</h4>
+                                            <p className="text-sm text-gray-600">1 day ago</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-700">Thank you for the excellent service! My car looks amazing. I'll definitely book again.</p>
+                                </div>
+                                <div className="bg-gray-50 rounded-lg p-4">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                            M
+                                        </div>
+                                        <div>
+                                            <h4 className="font-semibold text-gray-800">Mike Davis</h4>
+                                            <p className="text-sm text-gray-600">3 days ago</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-700">Can you provide a quote for ceramic coating? I have a 2020 BMW M3.</p>
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setShowMessages(false)}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Close
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            alert('All messages marked as read!');
+                                        }}
+                                        className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Mark All Read
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Service Modal */}
+            {editingService && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Edit Service</h2>
+                                <button
+                                    onClick={() => setEditingService(null)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Service Name</label>
+                                    <input
+                                        type="text"
+                                        defaultValue={editingService.name}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        onChange={(e) => setEditingService({ ...editingService, name: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Price ($)</label>
+                                        <input
+                                            type="number"
+                                            defaultValue={editingService.price}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                            onChange={(e) => setEditingService({ ...editingService, price: parseInt(e.target.value) })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Duration</label>
+                                        <input
+                                            type="text"
+                                            defaultValue={editingService.duration}
+                                            placeholder="e.g., 2 hours"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                            onChange={(e) => setEditingService({ ...editingService, duration: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="active"
+                                        checked={editingService.active}
+                                        onChange={(e) => setEditingService({ ...editingService, active: e.target.checked })}
+                                        className="mr-3"
+                                    />
+                                    <label htmlFor="active" className="text-sm font-semibold text-gray-700">Service is active</label>
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setEditingService(null)}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            saveServiceEdit(editingService);
+                                            alert('Service updated successfully!');
+                                        }}
+                                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Save Changes
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Service Modal */}
+            {showAddService && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-2xl font-bold text-gray-800">Add New Service</h2>
+                                <button
+                                    onClick={() => setShowAddService(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-2xl"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Service Name</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g., Premium Detailing"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                        id="newServiceName"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Price ($)</label>
+                                        <input
+                                            type="number"
+                                            placeholder="150"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                            id="newServicePrice"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Duration</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g., 3 hours"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                            id="newServiceDuration"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        id="newServiceActive"
+                                        defaultChecked
+                                        className="mr-3"
+                                    />
+                                    <label htmlFor="newServiceActive" className="text-sm font-semibold text-gray-700">Service is active</label>
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setShowAddService(false)}
+                                        className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const name = document.getElementById('newServiceName').value;
+                                            const price = parseInt(document.getElementById('newServicePrice').value);
+                                            const duration = document.getElementById('newServiceDuration').value;
+                                            const active = document.getElementById('newServiceActive').checked;
+
+                                            if (!name || !price || !duration) {
+                                                alert('Please fill in all required fields.');
+                                                return;
+                                            }
+
+                                            addNewService({ name, price, duration, active });
+                                            alert('Service added successfully!');
+                                        }}
+                                        className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white py-3 rounded-lg font-semibold transition-colors"
+                                    >
+                                        Add Service
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 });
@@ -3489,7 +4245,12 @@ const BRNNOMarketplace = () => {
     // Real providers from Firebase
     const [realProviders, setRealProviders] = useState([]);
     const [providersLoading, setProvidersLoading] = useState(true);
+    const [refreshProviders, setRefreshProviders] = useState(0);
 
+    // Function to refresh provider data
+    const triggerProviderRefresh = () => {
+        setRefreshProviders(prev => prev + 1);
+    };
 
     // Authentication state listener
     React.useEffect(() => {
@@ -3576,30 +4337,48 @@ const BRNNOMarketplace = () => {
                 const providersSnapshot = await getDocs(providersQuery);
                 const providers = [];
 
-                providersSnapshot.forEach((doc) => {
-                    const data = doc.data();
+                // Load providers and their services
+                for (const providerDoc of providersSnapshot.docs) {
+                    const data = providerDoc.data();
+
+                    // Get services from providers collection (publicly accessible)
+                    const activeServices = data.services ? data.services.filter(service => service.active === true) : [];
+                    console.log(`Provider ${data.businessName} services:`, data.services);
+                    console.log(`Active services for ${data.businessName}:`, activeServices);
+
                     providers.push({
-                        id: doc.id,
+                        id: providerDoc.id,
                         name: data.businessName || 'Unknown Business',
                         provider: data.businessName || 'Unknown Business',
                         rating: 4.8, // Default rating for new providers
                         reviews: 0, // New providers start with 0 reviews
-                        tags: data.services || [],
+                        tags: activeServices.map(service => service.name), // Only show active service names
                         description: `Professional mobile detailing service by ${data.businessName}`,
-                        startingPrice: 120, // Default starting price
+                        startingPrice: activeServices.length > 0 ? Math.min(...activeServices.map(s => s.price)) : 120, // Use lowest active service price
                         certified: data.backgroundCheck || false,
                         image: data.image || "/BRNNO_logov3.jpg", // Use custom image or BRNNO logo as default
                         serviceArea: data.serviceArea || 'Local Area',
                         phone: data.phone || '',
                         email: data.email || '',
+                        services: activeServices, // Include full service data
                         ...data
                     });
-                });
+                }
 
                 setRealProviders(providers);
                 console.log('Loaded providers:', providers);
                 console.log('Number of providers found:', providers.length);
                 console.log('Provider query status:', providersQuery);
+                console.log('Provider data structure:', providers.length > 0 ? providers[0] : 'No providers found');
+
+                // Debug each provider's services
+                providers.forEach(provider => {
+                    console.log(`Provider ${provider.name} final data:`, {
+                        tags: provider.tags,
+                        services: provider.services,
+                        startingPrice: provider.startingPrice
+                    });
+                });
             } catch (error) {
                 console.error('Error loading providers:', error);
             } finally {
@@ -3608,7 +4387,7 @@ const BRNNOMarketplace = () => {
         };
 
         loadProviders();
-    }, []);
+    }, [refreshProviders]);
 
     // Admin access with authentication
     React.useEffect(() => {
@@ -3909,6 +4688,11 @@ const BRNNOMarketplace = () => {
             serviceArea.includes('all areas');
     });
 
+    // Debug logging
+    console.log('Services array:', services);
+    console.log('Filtered services:', filteredServices);
+    console.log('Selected area:', selectedArea);
+
     const ServiceCard = ({ service }) => (
         <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
             <div className="relative h-48 overflow-hidden">
@@ -3998,6 +4782,7 @@ const BRNNOMarketplace = () => {
                     setBookingData={setBookingData}
                     userVehicles={userVehicles}
                     setShowAddVehicle={setShowAddVehicle}
+                    selectedProvider={selectedProvider}
                 />
                 {showProviderModal && (
                     <ProviderApplicationModal
@@ -4029,6 +4814,7 @@ const BRNNOMarketplace = () => {
                     <ProviderDashboard
                         showDashboard={showProviderDashboard}
                         setShowDashboard={setShowProviderDashboard}
+                        triggerProviderRefresh={triggerProviderRefresh}
                     />
                 )}
                 {showAdminDashboard && (
@@ -4067,6 +4853,14 @@ const BRNNOMarketplace = () => {
                                                     {userData?.accountType === 'provider' ? 'Provider' : 'Customer'}
                                                 </p>
                                             </div>
+                                            {userData?.accountType === 'provider' && (
+                                                <button
+                                                    onClick={() => setShowProviderDashboard(true)}
+                                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+                                                >
+                                                    Dashboard
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => setShowProfilePanel(true)}
                                                 className="w-8 h-8 bg-cyan-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-cyan-600 transition-colors"
@@ -4346,9 +5140,22 @@ const BRNNOMarketplace = () => {
                         </p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {filteredServices.map(service => (
-                            <ServiceCard key={service.id} service={service} />
-                        ))}
+                        {filteredServices.length > 0 ? (
+                            filteredServices.map(service => (
+                                <ServiceCard key={service.id} service={service} />
+                            ))
+                        ) : (
+                            <div className="col-span-full text-center py-12">
+                                <div className="text-6xl mb-4">🚗</div>
+                                <h3 className="text-xl font-bold text-gray-800 mb-2">No Providers Found</h3>
+                                <p className="text-gray-600 mb-4">
+                                    {providersLoading ? 'Loading providers...' : 'No detailing services available in your area.'}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                    Debug: {services.length} total providers, {filteredServices.length} filtered
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
