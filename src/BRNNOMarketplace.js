@@ -993,6 +993,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
     };
 
     const handleSave = async () => {
+        console.log('handleSave called', { formData, loading });
         try {
             setLoading(true);
             setError('');
@@ -1000,9 +1001,17 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
 
             const user = auth.currentUser;
             if (!user) {
+                console.error('User not authenticated');
                 setError('User not authenticated.');
                 return;
             }
+
+            console.log('Updating user data:', {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phone: formData.phone,
+                businessName: formData.businessName
+            });
 
             // Update user data in Firestore
             await updateDoc(doc(db, 'users', user.uid), {
@@ -1014,6 +1023,7 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                 updatedAt: serverTimestamp()
             });
 
+            console.log('Profile updated successfully');
             setSuccess('Profile updated successfully!');
             setIsEditing(false);
             loadUserData(); // Reload data
@@ -1257,7 +1267,10 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                             {isEditing && (
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <button
-                                        onClick={handleSave}
+                                        onClick={() => {
+                                            console.log('Save button clicked', { loading, formData });
+                                            handleSave();
+                                        }}
                                         disabled={loading}
                                         className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
                                     >
@@ -1490,7 +1503,8 @@ const BookingModal = memo(({
     setBookingData,
     userVehicles,
     setShowAddVehicle,
-    selectedProvider
+    selectedProvider,
+    triggerProviderRefresh
 }) => {
     console.log('BookingModal re-rendered'); // Debug log
 
@@ -1937,6 +1951,12 @@ const BookingModal = memo(({
                                         console.log('Body: You have a new booking! Payment will be processed shortly.');
 
                                         alert('Booking confirmed! Payment is being processed. You will receive an email confirmation shortly.');
+
+                                        // Trigger provider dashboard refresh to update earnings
+                                        if (triggerProviderRefresh) {
+                                            triggerProviderRefresh();
+                                        }
+
                                         closeModal();
                                     } catch (error) {
                                         console.error('Error creating booking:', error);
@@ -4143,6 +4163,7 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                             <label className="block text-sm font-bold text-gray-700 mb-2">Business Name</label>
                                             <input
                                                 type="text"
+                                                id="profileBusinessName"
                                                 defaultValue={providerInfo?.businessName || ''}
                                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                             />
@@ -4150,8 +4171,9 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                         <div>
                                             <label className="block text-sm font-bold text-gray-700 mb-2">Bio</label>
                                             <textarea
+                                                id="profileBio"
                                                 rows={4}
-                                                defaultValue="Professional mobile auto detailing service with over 5 years of experience. We specialize in premium detailing services."
+                                                defaultValue={providerInfo?.bio || "Professional mobile auto detailing service with over 5 years of experience. We specialize in premium detailing services."}
                                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                             />
                                         </div>
@@ -4160,7 +4182,8 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                                 <label className="block text-sm font-bold text-gray-700 mb-2">Phone</label>
                                                 <input
                                                     type="tel"
-                                                    defaultValue="(555) 123-4567"
+                                                    id="profilePhone"
+                                                    defaultValue={providerInfo?.phone || ''}
                                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                                 />
                                             </div>
@@ -4168,12 +4191,64 @@ const ProviderDashboard = memo(({ showDashboard, setShowDashboard, triggerProvid
                                                 <label className="block text-sm font-bold text-gray-700 mb-2">Email</label>
                                                 <input
                                                     type="email"
-                                                    defaultValue="contact@eliteautospa.com"
+                                                    id="profileEmail"
+                                                    defaultValue={providerInfo?.email || auth.currentUser?.email || ''}
                                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                                                 />
                                             </div>
                                         </div>
-                                        <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg font-bold transition-colors">
+                                        <button
+                                            onClick={async () => {
+                                                try {
+                                                    const businessName = document.getElementById('profileBusinessName').value;
+                                                    const bio = document.getElementById('profileBio').value;
+                                                    const phone = document.getElementById('profilePhone').value;
+                                                    const email = document.getElementById('profileEmail').value;
+
+                                                    console.log('Saving provider profile:', { businessName, bio, phone, email });
+
+                                                    if (auth.currentUser) {
+                                                        // Update users collection
+                                                        await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+                                                            businessName,
+                                                            bio,
+                                                            phone,
+                                                            email,
+                                                            updatedAt: serverTimestamp()
+                                                        });
+
+                                                        // Update providers collection
+                                                        const providerQuery = query(collection(db, 'providers'), where('userId', '==', auth.currentUser.uid));
+                                                        const providerSnapshot = await getDocs(providerQuery);
+                                                        if (!providerSnapshot.empty) {
+                                                            const providerDoc = providerSnapshot.docs[0];
+                                                            await updateDoc(providerDoc.ref, {
+                                                                businessName,
+                                                                bio,
+                                                                phone,
+                                                                email,
+                                                                updatedAt: serverTimestamp()
+                                                            });
+                                                        }
+
+                                                        // Update local state
+                                                        setProviderInfo(prev => ({
+                                                            ...prev,
+                                                            businessName,
+                                                            bio,
+                                                            phone,
+                                                            email
+                                                        }));
+
+                                                        alert('Profile updated successfully!');
+                                                    }
+                                                } catch (error) {
+                                                    console.error('Error saving provider profile:', error);
+                                                    alert('Failed to save profile. Please try again.');
+                                                }
+                                            }}
+                                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-3 rounded-lg font-bold transition-colors"
+                                        >
                                             Save Changes
                                         </button>
                                     </div>
@@ -5276,6 +5351,7 @@ const BRNNOMarketplace = () => {
                     userVehicles={userVehicles}
                     setShowAddVehicle={setShowAddVehicle}
                     selectedProvider={selectedProvider}
+                    triggerProviderRefresh={triggerProviderRefresh}
                 />
                 {showProviderModal && (
                     <ProviderApplicationModal
