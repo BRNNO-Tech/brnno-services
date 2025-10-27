@@ -14,6 +14,17 @@ import config from './config';
 // Check if provider has availability for the requested date/time
 const checkProviderAvailability = async (providerId, date, time) => {
     try {
+        // Validate providerId before querying
+        if (!providerId || typeof providerId !== 'string') {
+            return {
+                available: false,
+                reason: 'invalid',
+                message: 'Invalid provider',
+                spotsAvailable: 0,
+                totalCapacity: 0
+            };
+        }
+
         // Get provider data
         const providerDoc = await getDoc(doc(db, 'providers', providerId));
         const providerData = providerDoc.data();
@@ -346,7 +357,7 @@ const LoginModal = ({ showLoginModal, setShowLoginModal, authMode, setAuthMode, 
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
 
-            console.log('Google login:', user);
+            // Google login successful
 
             // Check if user profile exists, create if not
             const userDoc = await getDoc(doc(db, 'users', user.uid));
@@ -866,7 +877,7 @@ const SignupModal = ({ showSignupModal, setShowSignupModal, authMode, setAuthMod
     );
 };
 
-const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setProfileTab }) => {
+const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setProfileTab, userVehicles, setShowAddVehicle, setUserVehicles }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [isAuthorized, setIsAuthorized] = useState(false);
     const [checkingAuth, setCheckingAuth] = useState(false);
@@ -880,6 +891,16 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
         newPassword: '',
         confirmPassword: ''
     });
+
+    // Address management state
+    const [userAddresses, setUserAddresses] = useState([]);
+    const [showAddAddress, setShowAddAddress] = useState(false);
+    const [newAddress, setNewAddress] = useState({
+        nickname: '',
+        address: '',
+        instructions: ''
+    });
+    const [selectedAddress, setSelectedAddress] = useState(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -1091,6 +1112,98 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
             setLoading(false);
         }
     };
+
+    // Load user addresses
+    const loadUserAddresses = async () => {
+        if (!auth.currentUser) return;
+
+        try {
+            const addressesQuery = query(
+                collection(db, 'addresses'),
+                where('userId', '==', auth.currentUser.uid)
+            );
+            const addressesSnapshot = await getDocs(addressesQuery);
+            const addresses = [];
+
+            addressesSnapshot.forEach((doc) => {
+                addresses.push({
+                    id: doc.id,
+                    ...doc.data()
+                });
+            });
+
+            setUserAddresses(addresses);
+        } catch (error) {
+            console.error('Error loading addresses:', error);
+        }
+    };
+
+    // Add new address
+    const handleAddAddress = async () => {
+        if (!auth.currentUser) {
+            alert('Please sign in to add an address.');
+            return;
+        }
+
+        if (!newAddress.nickname || !newAddress.address) {
+            alert('Please fill in nickname and address.');
+            return;
+        }
+
+        try {
+            const addressData = {
+                ...newAddress,
+                userId: auth.currentUser.uid,
+                createdAt: serverTimestamp()
+            };
+
+            await addDoc(collection(db, 'addresses'), addressData);
+            await loadUserAddresses();
+
+            setNewAddress({
+                nickname: '',
+                address: '',
+                instructions: ''
+            });
+            setShowAddAddress(false);
+            alert('Address added successfully!');
+        } catch (error) {
+            console.error('Error adding address:', error);
+            alert(`Failed to add address: ${error.message}`);
+        }
+    };
+
+    // Delete address
+    const handleDeleteAddress = async (addressId) => {
+        try {
+            await deleteDoc(doc(db, 'addresses', addressId));
+            await loadUserAddresses();
+            alert('Address deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting address:', error);
+            alert('Failed to delete address. Please try again.');
+        }
+    };
+
+    // Delete vehicle
+    const handleDeleteVehicle = async (vehicleId) => {
+        try {
+            await deleteDoc(doc(db, 'vehicles', vehicleId));
+            // Update the userVehicles state in parent component
+            setUserVehicles(prev => prev.filter(v => v.id !== vehicleId));
+            alert('Vehicle deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting vehicle:', error);
+            alert('Failed to delete vehicle. Please try again.');
+        }
+    };
+
+    // Load addresses when component mounts
+    React.useEffect(() => {
+        if (showProfilePanel && auth.currentUser) {
+            loadUserAddresses();
+        }
+    }, [showProfilePanel, auth.currentUser]);
 
     if (!showProfilePanel) return null;
 
@@ -1325,8 +1438,134 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                         </div>
                     )}
 
+                    {/* Vehicles Tab */}
+                    {profileTab === 'vehicles' && (
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base sm:text-lg font-bold text-gray-800">My Vehicles</h3>
+                                <button
+                                    onClick={() => setShowAddVehicle(true)}
+                                    className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm touch-manipulation"
+                                >
+                                    + Add Vehicle
+                                </button>
+                            </div>
+
+                            {userVehicles && userVehicles.length > 0 ? (
+                                <div className="space-y-3">
+                                    {userVehicles.map((vehicle, idx) => (
+                                        <div key={vehicle.id || idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
+                                                        {vehicle.year} {vehicle.make} {vehicle.model}
+                                                    </h4>
+                                                    <p className="text-gray-600 text-xs sm:text-sm">
+                                                        {vehicle.color && `${vehicle.color} • `}
+                                                        {vehicle.licensePlate && `License: ${vehicle.licensePlate}`}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        if (confirm('Are you sure you want to delete this vehicle?')) {
+                                                            handleDeleteVehicle(vehicle.id);
+                                                        }
+                                                    }}
+                                                    className="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-1 rounded hover:bg-red-50 transition-colors"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <div className="text-4xl mb-4">🚗</div>
+                                    <h4 className="text-lg font-semibold text-gray-800 mb-2">No Vehicles Added</h4>
+                                    <p className="text-gray-600 text-sm mb-4">Add your vehicles to make booking easier</p>
+                                    <button
+                                        onClick={() => setShowAddVehicle(true)}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                                    >
+                                        Add Your First Vehicle
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Addresses Tab */}
+                    {profileTab === 'addresses' && (
+                        <div className="space-y-4 sm:space-y-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-base sm:text-lg font-bold text-gray-800">Saved Addresses</h3>
+                                <button
+                                    onClick={() => setShowAddAddress(true)}
+                                    className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm touch-manipulation"
+                                >
+                                    + Add Address
+                                </button>
+                            </div>
+
+                            {userAddresses && userAddresses.length > 0 ? (
+                                <div className="space-y-3">
+                                    {userAddresses.map((address, idx) => (
+                                        <div key={address.id || idx} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-gray-800 text-sm sm:text-base">
+                                                        {address.nickname || 'Home Address'}
+                                                    </h4>
+                                                    <p className="text-gray-600 text-xs sm:text-sm">
+                                                        {address.address}
+                                                    </p>
+                                                    {address.instructions && (
+                                                        <p className="text-gray-500 text-xs mt-1 italic">
+                                                            {address.instructions}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => setSelectedAddress(address)}
+                                                        className="text-cyan-500 hover:text-cyan-700 text-sm font-semibold px-3 py-1 rounded hover:bg-cyan-50 transition-colors"
+                                                    >
+                                                        Use
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (confirm('Are you sure you want to delete this address?')) {
+                                                                handleDeleteAddress(address.id);
+                                                            }
+                                                        }}
+                                                        className="text-red-500 hover:text-red-700 text-sm font-semibold px-3 py-1 rounded hover:bg-red-50 transition-colors"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <div className="text-4xl mb-4">📍</div>
+                                    <h4 className="text-lg font-semibold text-gray-800 mb-2">No Saved Addresses</h4>
+                                    <p className="text-gray-600 text-sm mb-4">Save your frequently used addresses for faster booking</p>
+                                    <button
+                                        onClick={() => setShowAddAddress(true)}
+                                        className="bg-cyan-500 hover:bg-cyan-600 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
+                                    >
+                                        Add Your First Address
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Other tabs would go here - simplified for brevity */}
-                    {profileTab !== 'personal' && (
+                    {profileTab !== 'personal' && profileTab !== 'vehicles' && profileTab !== 'addresses' && (
                         <div className="text-center py-8">
                             <p className="text-gray-500">Tab content for {profileTab} would go here</p>
                         </div>
@@ -1490,6 +1729,72 @@ const ProfilePanel = ({ showProfilePanel, setShowProfilePanel, profileTab, setPr
                     </div>
                 </div>
             )}
+
+            {/* Add Address Modal */}
+            {showAddAddress && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4">Add New Address</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Nickname</label>
+                                <input
+                                    type="text"
+                                    value={newAddress.nickname}
+                                    onChange={(e) => setNewAddress(prev => ({ ...prev, nickname: e.target.value }))}
+                                    placeholder="e.g., Home, Work, Mom's House"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Address</label>
+                                <textarea
+                                    value={newAddress.address}
+                                    onChange={(e) => setNewAddress(prev => ({ ...prev, address: e.target.value }))}
+                                    placeholder="Enter full address"
+                                    rows={3}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Special Instructions (Optional)</label>
+                                <textarea
+                                    value={newAddress.instructions}
+                                    onChange={(e) => setNewAddress(prev => ({ ...prev, instructions: e.target.value }))}
+                                    placeholder="e.g., Gate code, parking instructions, etc."
+                                    rows={2}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowAddAddress(false);
+                                    setNewAddress({
+                                        nickname: '',
+                                        address: '',
+                                        instructions: ''
+                                    });
+                                }}
+                                className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleAddAddress}
+                                className="flex-1 px-4 py-3 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold transition-colors"
+                            >
+                                Add Address
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 };
@@ -1506,10 +1811,57 @@ const BookingModal = memo(({
     selectedProvider,
     triggerProviderRefresh
 }) => {
-    console.log('BookingModal re-rendered'); // Debug log
+    // Debug log removed to reduce console spam
+
+    const [processingPayment, setProcessingPayment] = useState(false);
+    const [userAddresses, setUserAddresses] = useState([]);
+    const [showSavedAddresses, setShowSavedAddresses] = useState(false);
+
+    // Load user addresses when modal opens
+    React.useEffect(() => {
+        const loadAddresses = async () => {
+            if (!auth.currentUser) return;
+
+            try {
+                const addressesQuery = query(
+                    collection(db, 'addresses'),
+                    where('userId', '==', auth.currentUser.uid)
+                );
+                const addressesSnapshot = await getDocs(addressesQuery);
+                const addresses = [];
+
+                addressesSnapshot.forEach((doc) => {
+                    addresses.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                setUserAddresses(addresses);
+            } catch (error) {
+                console.error('Error loading addresses:', error);
+            }
+        };
+
+        if (showBookingModal) {
+            loadAddresses();
+        }
+    }, [showBookingModal]);
 
     // Use provider's services if available, otherwise fallback to default
-    const services = selectedProvider?.services?.filter(service => service.active === true) || [
+    // Handle both object format and string format for services
+    const providerServices = selectedProvider?.services || [];
+    const processedServices = providerServices.length > 0 && typeof providerServices[0] === 'object'
+        ? providerServices.filter(service => service.active === true)
+        : providerServices.map(serviceName => ({
+            name: serviceName,
+            price: 100,
+            duration: '1 hour',
+            description: serviceName,
+            active: true
+        }));
+
+    const services = processedServices.length > 0 ? processedServices : [
         { id: 1, name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior wash and interior vacuum', active: true },
         { id: 2, name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean interior, seats, carpets, dashboard', active: true },
         { id: 3, name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar, polish, wax', active: true },
@@ -1586,9 +1938,9 @@ const BookingModal = memo(({
                         <div>
                             <h3 className="text-xl font-bold text-gray-800 mb-4">Choose Your Service</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {services.map(service => (
+                                {services.map((service, idx) => (
                                     <div
-                                        key={service.id}
+                                        key={service.id || service.name || idx}
                                         onClick={() => setBookingData({ ...bookingData, service })}
                                         className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${bookingData.service?.id === service.id
                                             ? 'border-cyan-500 bg-cyan-50'
@@ -1695,11 +2047,64 @@ const BookingModal = memo(({
                                 </div>
 
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">Service Location</label>
+
+                                {/* Saved Addresses Section */}
+                                {userAddresses.length > 0 && (
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-sm font-medium text-gray-700">Saved Addresses</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowSavedAddresses(!showSavedAddresses)}
+                                                className="text-cyan-600 hover:text-cyan-700 text-sm font-semibold"
+                                            >
+                                                {showSavedAddresses ? 'Hide' : 'Show'} Saved
+                                            </button>
+                                        </div>
+
+                                        {showSavedAddresses && (
+                                            <div className="space-y-2 mb-3">
+                                                {userAddresses.map((address, idx) => (
+                                                    <div key={address.id || idx} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex-1">
+                                                                <h4 className="font-semibold text-gray-800 text-sm">
+                                                                    {address.nickname || 'Saved Address'}
+                                                                </h4>
+                                                                <p className="text-gray-600 text-xs">
+                                                                    {address.address}
+                                                                </p>
+                                                                {address.instructions && (
+                                                                    <p className="text-gray-500 text-xs mt-1 italic">
+                                                                        {address.instructions}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setBookingData(prev => ({ ...prev, address: address.address }));
+                                                                    setShowSavedAddresses(false);
+                                                                }}
+                                                                className="text-cyan-500 hover:text-cyan-700 text-sm font-semibold px-3 py-1 rounded hover:bg-cyan-50 transition-colors"
+                                                            >
+                                                                Use
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 <AddressInput
                                     initialValue={bookingData.address}
                                     onAddressChange={(value) => setBookingData(prev => ({ ...prev, address: value }))}
                                 />
-                                <p className="text-xs text-gray-500 mt-2">Or select from saved addresses</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    {userAddresses.length > 0 ? 'Or select from saved addresses above' : 'Save addresses in your profile for faster booking'}
+                                </p>
                             </div>
                         </div>
                     )}
@@ -1878,7 +2283,7 @@ const BookingModal = memo(({
                                         const booking = {
                                             customerId: auth.currentUser?.uid,
                                             customerEmail: auth.currentUser?.email,
-                                            customerName: userData?.displayName || 'Customer',
+                                            customerName: auth.currentUser?.displayName || 'Customer',
                                             providerId: bookingData.provider?.id,
                                             providerName: bookingData.provider?.name || bookingData.provider?.provider,
                                             service: bookingData.service,
@@ -2467,7 +2872,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     <h4 className="font-bold text-gray-800 mb-3">Services Offered</h4>
                                     <div className="flex flex-wrap gap-2">
                                         {providerData.services.length > 0 ? (
-                                            providerData.services.map(service => (
+                                            providerData.services.map((service, idx) => (
                                                 <span key={service} className="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-sm font-semibold">
                                                     {service}
                                                 </span>
@@ -2919,37 +3324,63 @@ const ProviderDetailModal = memo(({ provider, showModal, setShowModal, onBookNow
                         <div className="space-y-4">
                             <h3 className="text-xl font-bold text-gray-800 mb-4">Services & Pricing</h3>
 
-                            {(provider.services && provider.services.length > 0 ? provider.services.filter(service => service.active === true) : [
-                                { name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior hand wash and interior vacuum', active: true },
-                                { name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean all interior surfaces, carpets, and upholstery', active: true },
-                                { name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar treatment, polish, and wax', active: true },
-                                { name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing service', active: true },
-                                { name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction to remove swirls and scratches', active: true },
-                                { name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional grade ceramic coating with 5-year warranty', active: true }
-                            ]).map((service, idx) => (
-                                <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-cyan-500 transition-colors">
-                                    <div className="flex items-start justify-between mb-2">
-                                        <div>
-                                            <h4 className="font-bold text-gray-800 text-lg">{service.name}</h4>
-                                            <p className="text-sm text-gray-600">{service.description}</p>
+                            {(() => {
+                                // Handle both string and object formats for services
+                                let displayServices = [];
+
+                                if (provider.services && provider.services.length > 0) {
+                                    if (typeof provider.services[0] === 'object') {
+                                        // Services are objects with active property
+                                        displayServices = provider.services.filter(service => service.active === true);
+                                    } else {
+                                        // Services are strings - convert them to objects
+                                        displayServices = provider.services.map(serviceName => ({
+                                            name: serviceName,
+                                            price: 100,
+                                            duration: '1 hour',
+                                            description: serviceName,
+                                            active: true
+                                        }));
+                                    }
+                                }
+
+                                // If still no services, use fallback
+                                if (displayServices.length === 0) {
+                                    displayServices = [
+                                        { name: 'Basic Wash & Vacuum', price: 50, duration: '1 hour', description: 'Exterior hand wash and interior vacuum', active: true },
+                                        { name: 'Interior Detail', price: 120, duration: '2 hours', description: 'Deep clean all interior surfaces, carpets, and upholstery', active: true },
+                                        { name: 'Exterior Detail', price: 150, duration: '2.5 hours', description: 'Wash, clay bar treatment, polish, and wax', active: true },
+                                        { name: 'Full Detail', price: 200, duration: '4 hours', description: 'Complete interior and exterior detailing service', active: true },
+                                        { name: 'Paint Correction', price: 400, duration: '6 hours', description: 'Multi-stage paint correction to remove swirls and scratches', active: true },
+                                        { name: 'Ceramic Coating', price: 800, duration: '8 hours', description: 'Professional grade ceramic coating with 5-year warranty', active: true }
+                                    ];
+                                }
+
+                                return displayServices.map((service, idx) => (
+                                    <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:border-cyan-500 transition-colors">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 text-lg">{service.name}</h4>
+                                                <p className="text-sm text-gray-600">{service.description}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-2xl font-bold text-cyan-600">${service.price}</p>
+                                                <p className="text-xs text-gray-500">{service.duration}</p>
+                                            </div>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-2xl font-bold text-cyan-600">${service.price}</p>
-                                            <p className="text-xs text-gray-500">{service.duration}</p>
-                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setBookingData(prev => ({ ...prev, service: service }));
+                                                setShowModal(false);
+                                                onBookNow();
+                                            }}
+                                            className="mt-3 w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition-colors"
+                                        >
+                                            Book This Service
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={() => {
-                                            setBookingData(prev => ({ ...prev, service: service }));
-                                            setShowModal(false);
-                                            onBookNow();
-                                        }}
-                                        className="mt-3 w-full bg-cyan-500 hover:bg-cyan-600 text-white font-semibold py-2 rounded-lg transition-colors"
-                                    >
-                                        Book This Service
-                                    </button>
-                                </div>
-                            ))}
+                                ));
+                            })()}
                         </div>
                     )}
 
@@ -4910,9 +5341,29 @@ const BRNNOMarketplace = () => {
                     const data = providerDoc.data();
 
                     // Get services from providers collection (publicly accessible)
-                    const activeServices = data.services ? data.services.filter(service => service.active === true) : [];
-                    console.log(`Provider ${data.businessName} services:`, data.services);
-                    console.log(`Active services for ${data.businessName}:`, activeServices);
+                    // Handle both object format {name, price, active} and string format ['Service Name']
+                    let activeServices = [];
+
+                    if (data.services && data.services.length > 0) {
+                        // Check if services are objects or strings
+                        if (typeof data.services[0] === 'object') {
+                            // Services are objects with active property
+                            activeServices = data.services.filter(service => service.active === true);
+                        } else {
+                            // Services are strings - convert them to objects
+                            activeServices = data.services.map(serviceName => ({
+                                name: serviceName,
+                                active: true,
+                                price: 100 // Default price, should be set in database
+                            }));
+                        }
+                    }
+
+                    // Create tags from active services - fallback to empty array if no services
+                    const serviceTags = activeServices.length > 0 ? activeServices.map(service => service.name) : [];
+
+                    console.log(`Provider: ${data.businessName}, activeServices:`, activeServices);
+                    console.log(`Provider: ${data.businessName}, serviceTags:`, serviceTags);
 
                     providers.push({
                         id: providerDoc.id,
@@ -4920,7 +5371,7 @@ const BRNNOMarketplace = () => {
                         provider: data.businessName || 'Unknown Business',
                         rating: 4.8, // Default rating for new providers
                         reviews: 0, // New providers start with 0 reviews
-                        tags: activeServices.map(service => service.name), // Only show active service names
+                        tags: serviceTags, // Use the service tags or empty array
                         description: `Professional mobile detailing service by ${data.businessName}`,
                         startingPrice: activeServices.length > 0 ? Math.min(...activeServices.map(s => s.price)) : 120, // Use lowest active service price
                         certified: data.backgroundCheck || false,
@@ -4940,13 +5391,7 @@ const BRNNOMarketplace = () => {
                 console.log('Provider data structure:', providers.length > 0 ? providers[0] : 'No providers found');
 
                 // Debug each provider's services
-                providers.forEach(provider => {
-                    console.log(`Provider ${provider.name} final data:`, {
-                        tags: provider.tags,
-                        services: provider.services,
-                        startingPrice: provider.startingPrice
-                    });
-                });
+                // Debug logging removed - services should now display properly
             } catch (error) {
                 console.error('Error loading providers:', error);
             } finally {
@@ -5099,7 +5544,7 @@ const BRNNOMarketplace = () => {
             });
 
             setUserVehicles(vehicles);
-            console.log('Loaded user vehicles:', vehicles);
+            // User vehicles loaded successfully
         } catch (error) {
             console.error('Error loading vehicles:', error);
         }
@@ -5142,7 +5587,7 @@ const BRNNOMarketplace = () => {
             alert('Vehicle added successfully!');
         } catch (error) {
             console.error('Error adding vehicle:', error);
-            alert('Failed to add vehicle. Please try again.');
+            alert(`Failed to add vehicle: ${error.message}\n\nPlease check the console for more details.`);
         }
     };
 
@@ -5256,10 +5701,7 @@ const BRNNOMarketplace = () => {
             serviceArea.includes('all areas');
     });
 
-    // Debug logging
-    console.log('Services array:', services);
-    console.log('Filtered services:', filteredServices);
-    console.log('Selected area:', selectedArea);
+    // Debug logging - removed console logs to reduce console spam
 
     const ServiceCard = ({ service }) => (
         <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
@@ -5286,11 +5728,15 @@ const BRNNOMarketplace = () => {
                     )}
                 </div>
                 <div className="flex flex-wrap gap-2 mb-3">
-                    {service.tags.map((tag, idx) => (
-                        <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
-                            {tag}
-                        </span>
-                    ))}
+                    {service.tags && service.tags.length > 0 ? (
+                        service.tags.map((tag, idx) => (
+                            <span key={idx} className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full">
+                                {tag}
+                            </span>
+                        ))
+                    ) : (
+                        <span className="text-xs text-gray-500 italic">No services listed</span>
+                    )}
                 </div>
                 <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                     {service.description}
@@ -5340,6 +5786,9 @@ const BRNNOMarketplace = () => {
                     setShowProfilePanel={setShowProfilePanel}
                     profileTab={profileTab}
                     setProfileTab={setProfileTab}
+                    userVehicles={userVehicles}
+                    setShowAddVehicle={setShowAddVehicle}
+                    setUserVehicles={setUserVehicles}
                 />
                 <BookingModal
                     showBookingModal={showBookingModal}
