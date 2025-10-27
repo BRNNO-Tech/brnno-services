@@ -3043,7 +3043,7 @@ const ProviderApplicationModal = memo(({ showModal, setShowModal, providerStep, 
                                     // Save provider application to Firebase
                                     const providerApplication = {
                                         ...providerData,
-                                        status: 'approved', // Auto-approve for now
+                                        status: 'pending', // Requires admin approval
                                         submittedAt: serverTimestamp(),
                                         userId: userId,
                                         services: defaultServices, // Include default services
@@ -5331,8 +5331,11 @@ const BRNNOMarketplace = () => {
                     console.log('Status field:', doc.data().status);
                 });
 
-                // Try without status filter first to see all providers
-                const providersQuery = query(collection(db, 'providers'));
+                // Only load approved providers
+                const providersQuery = query(
+                    collection(db, 'providers'),
+                    where('status', '==', 'approved')
+                );
                 const providersSnapshot = await getDocs(providersQuery);
                 const providers = [];
 
