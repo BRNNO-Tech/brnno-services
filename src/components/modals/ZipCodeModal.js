@@ -29,9 +29,16 @@ export default function ZipCodeModal({ zipCode, setZipCode, onSubmit, onClose, o
                         const value = e.target.value.replace(/\D/g, '').slice(0, 5);
                         setZipCode(value);
                     }}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter' && zipCode.length === 5) {
+                            e.preventDefault();
+                            onSubmit(zipCode);
+                        }
+                    }}
                     placeholder="12345"
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none mb-6 text-center text-2xl font-semibold"
                     maxLength={5}
+                    autoFocus
                 />
 
                 <div className="flex flex-col gap-3">

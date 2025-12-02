@@ -621,12 +621,25 @@ export default function BrnnoMarketplace() {
 
     // Show zip code modal when entering marketplace without coordinates
     useEffect(() => {
+        // Only show modal if:
+        // 1. We're on the marketplace page
+        // 2. User doesn't have coordinates
+        // 3. No modal is currently showing (to avoid conflicts)
+        // 4. User hasn't stored a zip code
+        // 5. User hasn't skipped zip code entry
         if (currentPage === 'marketplace' && !userCoordinates && !modalType) {
             const storedZipCode = localStorage.getItem('brnno_zip_code');
             const skippedZipCode = localStorage.getItem('brnno_zip_code_skipped');
             if (!storedZipCode && !skippedZipCode) {
-                // Show zip code modal if no stored zip code and user hasn't skipped
-                setModalType('zipCode');
+                // Small delay to ensure state is stable
+                const timeout = setTimeout(() => {
+                    // Double-check conditions haven't changed
+                    if (currentPage === 'marketplace' && !userCoordinates && !modalType) {
+                        console.log('📍 Showing zip code modal for new user');
+                        setModalType('zipCode');
+                    }
+                }, 100);
+                return () => clearTimeout(timeout);
             }
         }
     }, [currentPage, userCoordinates, modalType]);
@@ -1378,12 +1391,12 @@ export default function BrnnoMarketplace() {
         }
 
         try {
-            console.log('Geocoding zip code:', trimmedZip);
+            console.log('📍 Starting zip code geocoding for:', trimmedZip);
             // Geocode zip code to get coordinates
             const coords = await geocodeAddress(trimmedZip);
 
             if (!coords) {
-                console.error('Geocoding failed for zip code:', trimmedZip);
+                console.error('❌ Geocoding failed for zip code:', trimmedZip);
                 if (showModal) {
                     // Check if it's an API error vs invalid zip code
                     const apiError = localStorage.getItem('geocoding_api_error');
@@ -1398,24 +1411,41 @@ export default function BrnnoMarketplace() {
                 return;
             }
 
-            console.log('Geocoding successful:', coords);
+            console.log('✅ Geocoding successful:', coords);
+
+            // Validate coordinates
+            if (!coords.lat || !coords.lng || isNaN(coords.lat) || isNaN(coords.lng)) {
+                console.error('❌ Invalid coordinates received:', coords);
+                if (showModal) {
+                    alert(`Invalid coordinates received for zip code ${trimmedZip}. Please try again.`);
+                    setModalType('zipCode');
+                }
+                return;
+            }
+
+            console.log('📍 Setting user coordinates:', coords);
 
             // Save coordinates
             setUserCoordinates(coords);
 
             // Store zip code in localStorage
             localStorage.setItem('brnno_zip_code', trimmedZip);
+            // Clear the "skipped" flag since user provided zip code
+            localStorage.removeItem('brnno_zip_code_skipped');
             setZipCode(trimmedZip);
 
+            console.log('🔄 Reloading detailers with new coordinates...');
             // Reload detailers with new coordinates
             await loadDetailers();
+            console.log('✅ Detailers reloaded successfully');
 
             // Close modal if it was open
             if (showModal) {
+                console.log('✅ Closing zip code modal');
                 setModalType(null);
             }
         } catch (error) {
-            console.error('Error processing zip code:', error);
+            console.error('❌ Error processing zip code:', error);
             console.error('Error details:', {
                 message: error.message,
                 stack: error.stack,

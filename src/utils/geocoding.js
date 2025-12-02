@@ -28,64 +28,205 @@ export function loadGoogleMapsApi() {
 
 // Geocode address to coordinates using Google Maps API
 export async function geocodeAddress(address) {
+    const startTime = Date.now();
     try {
         if (!address || !address.trim()) {
             console.error('Geocoding error: Empty address provided');
             return null;
         }
 
+        const zipCodePattern = /^\d{5}$/;
+        const isZipCode = zipCodePattern.test(address.trim());
+        console.log(`🔍 Geocoding ${isZipCode ? 'zip code' : 'address'}:`, address.trim());
+
         // Normalize the address input
         let normalizedAddress = address.trim();
         
         // If it's a 5-digit zip code, format it for better geocoding results
-        const zipCodePattern = /^\d{5}$/;
-        if (zipCodePattern.test(normalizedAddress)) {
+        if (isZipCode) {
             // Format as "ZIP_CODE, USA" for better geocoding results
             normalizedAddress = `${normalizedAddress}, USA`;
         }
 
-        // Try Google Maps Geocoding first (if available)
-        try {
-            await loadGoogleMapsApi();
+        // Try Google Maps Geocoding first (if available and properly configured)
+        // Skip Google if we know it's not configured (REQUEST_DENIED)
+        const skipGoogle = localStorage.getItem('skip_google_geocoding') === 'true';
+        if (!skipGoogle) {
+            try {
+                await loadGoogleMapsApi();
 
-            if (window.google && window.google.maps && window.google.maps.Geocoder) {
-                const geocoder = new window.google.maps.Geocoder();
+                if (window.google && window.google.maps && window.google.maps.Geocoder) {
+                    const geocoder = new window.google.maps.Geocoder();
 
-                // Convert callback-based geocoding to promise
-                const response = await new Promise((resolve, reject) => {
-                    geocoder.geocode({ address: normalizedAddress }, (results, status) => {
-                        if (status === 'OK' && results && results.length > 0) {
-                            resolve({ results, status });
-                        } else if (status === 'REQUEST_DENIED') {
-                            reject(new Error('REQUEST_DENIED'));
-                        } else if (status === 'ZERO_RESULTS') {
-                            reject(new Error('ZERO_RESULTS'));
-                        } else {
-                            reject(new Error(`Geocoding failed with status: ${status}`));
+                    // Convert callback-based geocoding to promise with timeout
+                    const response = await Promise.race([
+                        new Promise((resolve, reject) => {
+                            geocoder.geocode({ address: normalizedAddress }, (results, status) => {
+                                if (status === 'OK' && results && results.length > 0) {
+                                    resolve({ results, status });
+                                } else if (status === 'REQUEST_DENIED') {
+                                    // Mark to skip Google in future requests
+                                    localStorage.setItem('skip_google_geocoding', 'true');
+                                    reject(new Error('REQUEST_DENIED'));
+                                } else if (status === 'ZERO_RESULTS') {
+                                    reject(new Error('ZERO_RESULTS'));
+                                } else {
+                                    reject(new Error(`Geocoding failed with status: ${status}`));
+                                }
+                            });
+                        }),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+                    ]);
+
+                    if (response && response.results && response.results.length > 0) {
+                        const result = response.results[0];
+                        if (result && result.geometry && result.geometry.location) {
+                            const byType = (type) => result.address_components?.find(c => c.types.includes(type));
+                            const coords = {
+                                lat: result.geometry.location.lat(),
+                                lng: result.geometry.location.lng(),
+                                formattedAddress: result.formatted_address,
+                                city: byType('locality')?.long_name || '',
+                                state: byType('administrative_area_level_1')?.short_name || '',
+                                zip: byType('postal_code')?.long_name || ''
+                            };
+                            console.log('✅ Geocoding success (Google Maps):', coords);
+                            return coords;
                         }
-                    });
-                });
-
-                if (response && response.results && response.results.length > 0) {
-                    const result = response.results[0];
-                    if (result && result.geometry && result.geometry.location) {
-                        const byType = (type) => result.address_components?.find(c => c.types.includes(type));
-                        const coords = {
-                            lat: result.geometry.location.lat(),
-                            lng: result.geometry.location.lng(),
-                            formattedAddress: result.formatted_address,
-                            city: byType('locality')?.long_name || '',
-                            state: byType('administrative_area_level_1')?.short_name || '',
-                            zip: byType('postal_code')?.long_name || ''
-                        };
-                        console.log('Geocoding success (Google Maps):', coords);
-                        return coords;
                     }
                 }
+            } catch (googleError) {
+                // Google Maps failed, fall back to free service
+                if (googleError.message === 'REQUEST_DENIED') {
+                    console.log('⚠️ Google Geocoding API not authorized. Using free alternatives...');
+                    console.log('💡 To fix: Enable Geocoding API in Google Cloud Console for your API key');
+                } else {
+                    console.log('⚠️ Google Geocoding unavailable, using free alternative...', googleError.message);
+                }
             }
-        } catch (googleError) {
-            // Google Maps failed, fall back to free service
-            console.log('Google Geocoding unavailable, using free alternative...', googleError);
+        } else {
+            console.log('⏭️ Skipping Google Geocoding (not configured), using free alternatives...');
+        }
+
+        // For zip codes, use a direct coordinate lookup service
+        if (isZipCode) {
+            const zip = address.trim();
+            
+            // Method 1: Try Zippopotam.us to get city/state, then geocode
+            try {
+                console.log(`📍 Method 1: Looking up zip ${zip} via Zippopotam...`);
+                const zippoResponse = await Promise.race([
+                    fetch(`https://api.zippopotam.us/us/${zip}`, {
+                        headers: { 'Accept': 'application/json' }
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                ]);
+                
+                if (zippoResponse.ok) {
+                    const zippoData = await zippoResponse.json();
+                    console.log('📍 Zippopotam data received:', zippoData);
+                    if (zippoData.places && zippoData.places.length > 0) {
+                        const place = zippoData.places[0];
+                        const city = place['place name'];
+                        const state = place.state;
+                        const stateAbbr = place['state abbreviation'] || state;
+                        console.log(`📍 Found location: ${city}, ${stateAbbr}`);
+                        
+                        // Try multiple geocoding queries with the city/state info
+                        const queries = [
+                            `${zip}`,
+                            `${city}, ${stateAbbr} ${zip}`,
+                            `${city}, ${state}, ${zip}`,
+                            `${zip}, ${city}, ${stateAbbr}, USA`
+                        ];
+                        
+                        for (let i = 0; i < queries.length; i++) {
+                            const query = queries[i];
+                            try {
+                                console.log(`📍 Geocoding query ${i + 1}/${queries.length}: "${query}"`);
+                                const geoResponse = await Promise.race([
+                                    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&countrycodes=us&addressdetails=1`, {
+                                        headers: {
+                                            'User-Agent': 'Brnno Marketplace App',
+                                            'Accept-Language': 'en-US,en;q=0.9'
+                                        }
+                                    }),
+                                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                                ]);
+                                
+                                if (geoResponse.ok) {
+                                    const geoData = await geoResponse.json();
+                                    console.log(`📍 Nominatim response for "${query}":`, geoData);
+                                    if (geoData && geoData.length > 0) {
+                                        const result = geoData[0];
+                                        const coords = {
+                                            lat: parseFloat(result.lat),
+                                            lng: parseFloat(result.lon),
+                                            formattedAddress: `${city}, ${stateAbbr} ${zip}`,
+                                            city: city || '',
+                                            state: stateAbbr || '',
+                                            zip: zip
+                                        };
+                                        console.log('✅ Geocoding success (Zippopotam + Nominatim):', coords);
+                                        return coords;
+                                    }
+                                } else {
+                                    console.log(`⚠️ Nominatim returned status ${geoResponse.status} for "${query}"`);
+                                }
+                                // Small delay between queries
+                                if (i < queries.length - 1) {
+                                    await new Promise(resolve => setTimeout(resolve, 500));
+                                }
+                            } catch (err) {
+                                console.log(`⚠️ Error geocoding "${query}":`, err.message);
+                                continue;
+                            }
+                        }
+                    } else {
+                        console.log('⚠️ Zippopotam returned no places');
+                    }
+                } else {
+                    console.log(`⚠️ Zippopotam returned status ${zippoResponse.status}`);
+                }
+            } catch (zippoError) {
+                console.log('❌ Zippopotam lookup failed:', zippoError.message);
+            }
+            
+            // Method 2: Direct Nominatim lookup with zip code
+            try {
+                console.log(`📍 Method 2: Direct Nominatim lookup for zip ${zip}...`);
+                const directResponse = await Promise.race([
+                    fetch(`https://nominatim.openstreetmap.org/search?postalcode=${zip}&countrycodes=us&format=json&limit=1&addressdetails=1`, {
+                        headers: {
+                            'User-Agent': 'Brnno Marketplace App',
+                            'Accept-Language': 'en-US,en;q=0.9'
+                        }
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+                ]);
+                
+                if (directResponse.ok) {
+                    const directData = await directResponse.json();
+                    console.log('📍 Direct Nominatim response:', directData);
+                    if (directData && directData.length > 0) {
+                        const result = directData[0];
+                        const coords = {
+                            lat: parseFloat(result.lat),
+                            lng: parseFloat(result.lon),
+                            formattedAddress: result.display_name || `${zip}`,
+                            city: result.address?.city || result.address?.town || result.address?.village || '',
+                            state: result.address?.state || '',
+                            zip: zip
+                        };
+                        console.log('✅ Geocoding success (Direct Nominatim):', coords);
+                        return coords;
+                    }
+                } else {
+                    console.log(`⚠️ Direct Nominatim returned status ${directResponse.status}`);
+                }
+            } catch (directError) {
+                console.log('❌ Direct Nominatim lookup failed:', directError.message);
+            }
         }
 
         // Fallback: Use free OpenStreetMap Nominatim geocoding service
@@ -94,14 +235,17 @@ export async function geocodeAddress(address) {
         let searchQueries = [normalizedAddress];
         
         // If it's a zip code, try additional formats
-        if (zipCodePattern.test(address.trim())) {
+        if (isZipCode) {
             const zip = address.trim();
             searchQueries = [
                 `${zip}, USA`,
                 `${zip}, United States`,
                 `${zip}, UT, USA`,  // Try with Utah state code
+                `${zip}, Utah, USA`,  // Try with full Utah state name
                 `ZIP code ${zip}, USA`,
-                `${zip}`
+                `ZIP code ${zip}, Utah, USA`,
+                `${zip}, US`,  // Short country code
+                `${zip}`  // Just the zip code
             ];
         }
 
@@ -159,13 +303,20 @@ export async function geocodeAddress(address) {
         }
 
         // If all attempts failed
-        console.error('Geocoding error: No results found for address after all attempts:', address);
+        const elapsed = Date.now() - startTime;
+        console.error(`❌ Geocoding failed after ${elapsed}ms. Address:`, address);
         if (lastError) {
             console.error('Last error:', lastError);
         }
         return null;
     } catch (error) {
-        console.error('Geocoding error:', error);
+        const elapsed = Date.now() - startTime;
+        console.error(`❌ Geocoding error after ${elapsed}ms:`, error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            address: address
+        });
         return null;
     }
 }
