@@ -24,7 +24,7 @@ service cloud.firestore {
     // but ONLY the detailer can create or update their own profile (or admins can update any detailer)
     // Prevent duplicate sign-ups: can't create if detailer or customer document already exists
     match /detailer/{detailerId} {
-      allow read, list: if request.auth != null; // Anyone authenticated can read/list detailer profiles
+      allow read, list: if true; // Anyone (including unauthenticated) can read/list detailer profiles
       allow create: if request.auth != null && 
         request.auth.uid == detailerId &&
         !exists(/databases/$(database)/documents/detailer/$(detailerId)) &&
@@ -65,7 +65,7 @@ service cloud.firestore {
       allow delete: if isAdmin(); // Only admins can delete during migration
     }
 
-    // Bookings collection
+    // Bookings collection - allow guest bookings
     match /bookings/{bookingId} {
       // Allow read/list if user is the customer, provider (detailer), or admin
       allow read, list: if request.auth != null && (
@@ -74,10 +74,16 @@ service cloud.firestore {
         isAdmin()
       );
       
-      // Allow create for authenticated users - validate that customerId matches the authenticated user
-      allow create: if request.auth != null && 
-        request.resource.data.customerId == request.auth.uid;
-        
+      // Allow create for authenticated users OR guests (with email)
+      allow create: if (
+        // Authenticated user creating their own booking
+        (request.auth != null && request.resource.data.customerId == request.auth.uid) ||
+        // Guest booking (no auth, but has email)
+        (request.auth == null && 
+         request.resource.data.isGuest == true &&
+         request.resource.data.customerEmail != null)
+      );
+       
       // Allow update if user is the customer, provider, or admin
       allow update: if request.auth != null && (
         resource.data.customerId == request.auth.uid ||

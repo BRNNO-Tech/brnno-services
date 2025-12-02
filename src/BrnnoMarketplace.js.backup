@@ -171,84 +171,45 @@ async function geocodeAddress(address) {
             return null;
         }
 
-        // Try Google Maps Geocoding first (if available)
-        try {
-            await loadGoogleMapsApi();
+        await loadGoogleMapsApi();
 
-            if (window.google && window.google.maps && window.google.maps.Geocoder) {
-                const geocoder = new window.google.maps.Geocoder();
-
-                // Convert callback-based geocoding to promise
-                const response = await new Promise((resolve, reject) => {
-                    geocoder.geocode({ address }, (results, status) => {
-                        if (status === 'OK' && results && results.length > 0) {
-                            resolve({ results, status });
-                        } else if (status === 'REQUEST_DENIED') {
-                            reject(new Error('REQUEST_DENIED'));
-                        } else if (status === 'ZERO_RESULTS') {
-                            reject(new Error('ZERO_RESULTS'));
-                        } else {
-                            reject(new Error(`Geocoding failed with status: ${status}`));
-                        }
-                    });
-                });
-
-                if (response && response.results && response.results.length > 0) {
-                    const result = response.results[0];
-                    if (result && result.geometry && result.geometry.location) {
-                        const byType = (type) => result.address_components?.find(c => c.types.includes(type));
-                        const coords = {
-                            lat: result.geometry.location.lat(),
-                            lng: result.geometry.location.lng(),
-                            formattedAddress: result.formatted_address,
-                            city: byType('locality')?.long_name || '',
-                            state: byType('administrative_area_level_1')?.short_name || '',
-                            zip: byType('postal_code')?.long_name || ''
-                        };
-                        return coords;
-                    }
-                }
-            }
-        } catch (googleError) {
-            // Google Maps failed, fall back to free service
-            console.log('Google Geocoding unavailable, using free alternative...');
+        if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
+            console.error('Geocoding error: Google Maps API not loaded');
+            return null;
         }
 
-        // Fallback: Use free OpenStreetMap Nominatim geocoding service
-        // This is completely free and doesn't require billing
-        const encodedAddress = encodeURIComponent(address);
-        const nominatimUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&limit=1`;
+        const geocoder = new window.google.maps.Geocoder();
+        const response = await geocoder.geocode({ address });
 
-        const response = await fetch(nominatimUrl, {
-            headers: {
-                'User-Agent': 'Brnno Marketplace App' // Required by Nominatim
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Nominatim API error: ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        if (!data || data.length === 0) {
+        if (!response || !response.results || response.results.length === 0) {
             console.error('Geocoding error: No results found for address:', address);
             return null;
         }
 
-        const result = data[0];
+        const result = response.results[0];
+        if (!result || !result.geometry || !result.geometry.location) {
+            console.error('Geocoding error: Invalid result structure');
+            return null;
+        }
+
+        const byType = (type) => result.address_components?.find(c => c.types.includes(type));
         const coords = {
-            lat: parseFloat(result.lat),
-            lng: parseFloat(result.lon),
-            formattedAddress: result.display_name || address,
-            city: result.address?.city || result.address?.town || result.address?.village || '',
-            state: result.address?.state || '',
-            zip: result.address?.postcode || ''
+            lat: result.geometry.location.lat(),
+            lng: result.geometry.location.lng(),
+            formattedAddress: result.formatted_address,
+            city: byType('locality')?.long_name || '',
+            state: byType('administrative_area_level_1')?.short_name || '',
+            zip: byType('postal_code')?.long_name || ''
         };
 
         return coords;
     } catch (error) {
         console.error('Geocoding error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            address: address
+        });
         return null;
     }
 }
@@ -292,8 +253,7 @@ export default function BrnnoMarketplace() {
     const [currentPage, setCurrentPage] = useState('landing'); // landing, marketplace, detailerProfile, dashboard
 
     // Modal/flow state
-    const [modalType, setModalType] = useState(null); // 'address', 'signup', 'login', 'providerOnboarding', 'guestCheckout'
-    const [guestBookingInfo, setGuestBookingInfo] = useState(null); // { email, name } for guest bookings
+    const [modalType, setModalType] = useState(null); // 'address', 'signup', 'login', 'providerOnboarding'
 
     // Login form state
     const [loginData, setLoginData] = useState({
@@ -303,7 +263,6 @@ export default function BrnnoMarketplace() {
 
     // Form data
     const [address, setAddress] = useState('');
-    const [zipCode, setZipCode] = useState('');
     const [answers, setAnswers] = useState({
         vehicleType: '',
         serviceType: '',
@@ -784,30 +743,6 @@ export default function BrnnoMarketplace() {
         }
     }
 
-    // Check for stored zip code on mount
-    useEffect(() => {
-        const storedZipCode = localStorage.getItem('brnno_zip_code');
-        if (storedZipCode && !userCoordinates) {
-            setZipCode(storedZipCode);
-            // Auto-load coordinates from stored zip code
-            handleZipCodeSubmit(storedZipCode, false).catch(error => {
-                console.error('Error loading stored zip code:', error);
-            });
-        }
-    }, []); // Only run once on mount
-
-    // Show zip code modal when entering marketplace without coordinates
-    useEffect(() => {
-        if (currentPage === 'marketplace' && !userCoordinates && !modalType) {
-            const storedZipCode = localStorage.getItem('brnno_zip_code');
-            const skippedZipCode = localStorage.getItem('brnno_zip_code_skipped');
-            if (!storedZipCode && !skippedZipCode) {
-                // Show zip code modal if no stored zip code and user hasn't skipped
-                setModalType('zipCode');
-            }
-        }
-    }, [currentPage, userCoordinates, modalType]);
-
     // Load detailers when marketplace opens (and when coordinates become available)
     useEffect(() => {
         if (currentPage === 'marketplace') {
@@ -984,11 +919,12 @@ export default function BrnnoMarketplace() {
                         data.coordinates.lat,
                         data.coordinates.lng
                     );
-                }
-                // Only log warning if user has coordinates but provider doesn't (data issue)
-                // Don't log if user doesn't have coordinates (expected when browsing without zip code)
-                else if (userCoordinates && !data.coordinates) {
-                    console.warn(`Provider missing coordinates:`, data.businessName);
+                } else {
+                    console.warn(`Missing coordinates for distance calculation:`, {
+                        provider: data.businessName,
+                        hasUserCoords: !!userCoordinates,
+                        hasProviderCoords: !!data.coordinates
+                    });
                 }
 
                 // Generate available times based on defaultAvailability
@@ -1371,10 +1307,7 @@ export default function BrnnoMarketplace() {
 
     async function handleLogout() {
         try {
-            // Set loading to false FIRST to prevent stuck loading state
-            setLoading(false);
-
-            // Clear all local state
+            // Clear all local state first
             setCurrentUser(null);
             setUserAccountType(null);
             setIsProvider(false);
@@ -1388,19 +1321,16 @@ export default function BrnnoMarketplace() {
             setUserCoordinates(null);
             setDetailers([]);
 
-            // Navigate to landing page BEFORE sign out
-            setCurrentPage('landing');
-            setModalType(null);
-
             // Sign out from Firebase
             await signOut(auth);
 
-            // Clear Firebase Auth storage from browser (don't wait for it)
+            // Clear Firebase Auth storage from browser
             try {
+                // Clear Firebase Auth persistence
                 if (typeof window !== 'undefined' && window.indexedDB) {
+                    // Clear IndexedDB Firebase Auth storage
                     const deleteReq = indexedDB.deleteDatabase('firebaseLocalStorageDb');
                     deleteReq.onsuccess = () => {
-                        console.log('✅ Firebase Auth storage cleared');
                     };
                     deleteReq.onerror = () => {
                         console.warn('⚠️ Could not clear Firebase Auth storage');
@@ -1416,48 +1346,34 @@ export default function BrnnoMarketplace() {
                 console.warn('⚠️ Could not clear browser storage:', storageError);
             }
 
-            // Force page reload with a small delay to ensure state updates
-            // Use setTimeout to ensure reload happens even if something blocks it
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
+            // Navigate to landing page
+            setCurrentPage('landing');
 
+            // Clear any modals
+            setModalType(null);
+
+            // Force page reload to clear any cached state
+            window.location.reload();
         } catch (error) {
             console.error('❌ Error during logout:', error);
-            // Ensure loading is false even on error
-            setLoading(false);
             // Still navigate to landing page even if signOut fails
             setCurrentPage('landing');
             setCurrentUser(null);
-            // Force reload with timeout fallback
-            setTimeout(() => {
-                window.location.reload();
-            }, 100);
+            // Force reload to clear state
+            window.location.reload();
         }
     }
 
     // ==================== ONBOARDING FLOW ====================
     const startOnboarding = useCallback(() => {
-        // Navigate directly to marketplace - no signup required to browse
-        setCurrentPage('marketplace');
-
-        // Check if we have zip code stored in localStorage
-        const storedZipCode = localStorage.getItem('brnno_zip_code');
-        if (storedZipCode && !userCoordinates) {
-            // Use stored zip code to get coordinates
-            handleZipCodeSubmit(storedZipCode, false);
-        } else if (!userCoordinates) {
-            // Show zip code modal if no coordinates
-            setModalType('zipCode');
+        // If user is already logged in but needs address, show address modal
+        if (currentUser && userAccountType === 'customer' && !address) {
+            setModalType('address');
+        } else {
+            // Show signup modal first - users can choose customer or provider
+            setModalType('signup');
         }
-
-        // Load detailers if not already loaded (works without auth)
-        if (detailers.length === 0) {
-            loadDetailers().catch(error => {
-                console.error('Error loading detailers:', error);
-            });
-        }
-    }, [detailers.length, userCoordinates]);
+    }, [currentUser, userAccountType, address]);
 
     const startLogin = useCallback(() => {
         // Show login modal for returning users
@@ -1527,57 +1443,6 @@ export default function BrnnoMarketplace() {
             console.error('Error geocoding address:', error);
             alert('Error validating address. Please try again.');
             setModalType(originalModalType);
-        }
-    }
-
-    async function handleZipCodeSubmit(zipCodeValue, showModal = true) {
-        if (!zipCodeValue || !zipCodeValue.trim()) return;
-
-        // Show loading state if modal is open
-        if (showModal) {
-            const originalModalType = modalType;
-            setModalType('loading');
-        }
-
-        try {
-            // Geocode zip code to get coordinates
-            const coords = await geocodeAddress(zipCodeValue);
-
-            if (!coords) {
-                if (showModal) {
-                    // Check if it's an API error vs invalid zip code
-                    const apiError = localStorage.getItem('geocoding_api_error');
-                    if (apiError) {
-                        alert('Geocoding service is not available. Please check your Google Maps API configuration. You can still browse all detailers.');
-                        localStorage.removeItem('geocoding_api_error');
-                    } else {
-                        alert('Could not find that zip code. Please check and try again.');
-                    }
-                    setModalType('zipCode');
-                }
-                return;
-            }
-
-            // Save coordinates
-            setUserCoordinates(coords);
-
-            // Store zip code in localStorage
-            localStorage.setItem('brnno_zip_code', zipCodeValue.trim());
-            setZipCode(zipCodeValue.trim());
-
-            // Reload detailers with new coordinates
-            await loadDetailers();
-
-            // Close modal if it was open
-            if (showModal) {
-                setModalType(null);
-            }
-        } catch (error) {
-            console.error('Error processing zip code:', error);
-            if (showModal) {
-                alert('Failed to process zip code. Please try again.');
-                setModalType('zipCode');
-            }
         }
     }
 
@@ -1672,6 +1537,7 @@ export default function BrnnoMarketplace() {
             {currentPage === 'landing' && (
                 <LandingPage
                     onGetStarted={startOnboarding}
+                    onLogin={startLogin}
                 />
             )}
 
@@ -1687,7 +1553,6 @@ export default function BrnnoMarketplace() {
                     currentUser={currentUser}
                     onGoToDashboard={() => { setShowProfileDropdown(false); setCurrentPage('dashboard'); }}
                     onLogout={handleLogout}
-                    onLogin={startLogin}
                     showProfileDropdown={showProfileDropdown}
                     setShowProfileDropdown={setShowProfileDropdown}
                     address={address}
@@ -1714,9 +1579,6 @@ export default function BrnnoMarketplace() {
                     onBook={() => {
                         alert('Booking functionality - integrate with your Stripe!');
                     }}
-                    onShowSignup={() => setModalType('signup')}
-                    onShowGuestCheckout={() => setModalType('guestCheckout')}
-                    guestBookingInfo={guestBookingInfo}
                 />
             )}
 
@@ -1799,46 +1661,12 @@ export default function BrnnoMarketplace() {
                     onClose={() => setModalType(null)}
                 />
             )}
-
-            {modalType === 'zipCode' && (
-                <ZipCodeModal
-                    zipCode={zipCode}
-                    setZipCode={setZipCode}
-                    onSubmit={(zip) => handleZipCodeSubmit(zip, true)}
-                    onClose={() => {
-                        setModalType(null);
-                        // Allow browsing without zip code
-                    }}
-                    onSkip={() => {
-                        // Mark that user skipped zip code entry
-                        localStorage.setItem('brnno_zip_code_skipped', 'true');
-                        setModalType(null);
-                        // Allow browsing without zip code
-                    }}
-                />
-            )}
-
-            {modalType === 'guestCheckout' && (
-                <GuestCheckoutModal
-                    onContinue={(guestInfo) => {
-                        setGuestBookingInfo(guestInfo);
-                        setModalType(null);
-                    }}
-                    onSignUp={() => {
-                        setModalType('signup');
-                    }}
-                    onClose={() => {
-                        setModalType(null);
-                        setGuestBookingInfo(null);
-                    }}
-                />
-            )}
         </div>
     );
 }
 
 // ==================== LANDING PAGE ====================
-function LandingPage({ onGetStarted }) {
+function LandingPage({ onGetStarted, onLogin }) {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 text-white">
             <div className="max-w-6xl mx-auto px-4 py-12 sm:py-20">
@@ -1847,13 +1675,21 @@ function LandingPage({ onGetStarted }) {
                     <p className="text-lg sm:text-xl md:text-2xl text-blue-100 mb-8 sm:mb-12 px-4">
                         Premium mobile detailing at your fingertips
                     </p>
-                    <div className="flex items-center justify-center px-4">
+                    <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 px-4">
                         <button
                             onClick={onGetStarted}
                             className="w-full sm:w-auto bg-white text-blue-600 px-8 sm:px-12 py-3 sm:py-4 rounded-xl text-lg sm:text-xl font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 shadow-2xl"
                         >
                             Get Started
                         </button>
+                        {onLogin && (
+                            <button
+                                onClick={onLogin}
+                                className="w-full sm:w-auto bg-transparent border-2 border-white text-white px-8 sm:px-12 py-3 sm:py-4 rounded-xl text-lg sm:text-xl font-semibold hover:bg-white/10 transition-all transform hover:scale-105"
+                            >
+                                Sign In
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -1933,64 +1769,6 @@ function AddressModal({ address, setAddress, addressInputRef, onSubmit, onClose 
 }
 
 // QuestionsModal component removed - questions flow removed
-
-// ==================== ZIP CODE MODAL ====================
-function ZipCodeModal({ zipCode, setZipCode, onSubmit, onClose, onSkip }) {
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-md w-full p-8 relative animate-fadeIn">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-
-                <div className="mb-6">
-                    <MapPin className="w-12 h-12 text-blue-600 mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Enter Your Zip Code
-                    </h2>
-                    <p className="text-gray-600">
-                        We'll show you detailers near your location
-                    </p>
-                </div>
-
-                <input
-                    type="text"
-                    value={zipCode}
-                    onChange={(e) => {
-                        // Only allow numbers, max 5 digits
-                        const value = e.target.value.replace(/\D/g, '').slice(0, 5);
-                        setZipCode(value);
-                    }}
-                    placeholder="12345"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none mb-4 text-center text-2xl font-semibold"
-                    maxLength={5}
-                    autoFocus
-                />
-
-                <div className="flex flex-col gap-3">
-                    <button
-                        onClick={() => onSubmit(zipCode)}
-                        disabled={!zipCode || zipCode.length !== 5}
-                        className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
-                        Find Detailers
-                    </button>
-                    {onSkip && (
-                        <button
-                            onClick={onSkip}
-                            className="w-full text-gray-600 py-2 rounded-xl font-medium hover:text-gray-800 transition-colors"
-                        >
-                            Skip for now
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-}
 
 // ==================== LOGIN MODAL ====================
 function LoginModal({ loginData, setLoginData, onEmailLogin, onGoogleLogin, onClose, onSwitchToSignup }) {
@@ -2076,84 +1854,6 @@ function LoginModal({ loginData, setLoginData, onEmailLogin, onGoogleLogin, onCl
                         className="text-blue-600 font-medium hover:text-blue-700"
                     >
                         Don't have an account? Sign up
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ==================== GUEST CHECKOUT MODAL ====================
-function GuestCheckoutModal({ onContinue, onSignUp, onClose }) {
-    const [guestEmail, setGuestEmail] = useState('');
-    const [guestName, setGuestName] = useState('');
-
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl max-w-md w-full p-8 relative animate-fadeIn">
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
-                >
-                    <X className="w-6 h-6" />
-                </button>
-
-                <div className="mb-6">
-                    <User className="w-12 h-12 text-blue-600 mb-4" />
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                        Continue as Guest
-                    </h2>
-                    <p className="text-gray-600 mb-4">
-                        Complete your booking without creating an account. A receipt will be sent to your email.
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-sm text-blue-800">
-                            <strong>Note:</strong> To save addresses, vehicles, or track bookings, you'll need to create an account.
-                        </p>
-                    </div>
-                </div>
-
-                <div className="space-y-4 mb-6">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Email Address <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="email"
-                            value={guestEmail}
-                            onChange={(e) => setGuestEmail(e.target.value)}
-                            placeholder="your.email@example.com"
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none"
-                            required
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Full Name (Optional)
-                        </label>
-                        <input
-                            type="text"
-                            value={guestName}
-                            onChange={(e) => setGuestName(e.target.value)}
-                            placeholder="John Doe"
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-600 focus:outline-none"
-                        />
-                    </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                    <button
-                        onClick={() => onContinue({ email: guestEmail.trim(), name: guestName.trim() })}
-                        disabled={!guestEmail || !guestEmail.includes('@')}
-                        className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                    >
-                        Continue to Payment
-                    </button>
-                    <button
-                        onClick={onSignUp}
-                        className="w-full border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-                    >
-                        Create Account Instead
                     </button>
                 </div>
             </div>
@@ -2411,10 +2111,7 @@ function BookingSidebar({
     answers,
     setAddress,
     setAnswers,
-    onBook, // backward compatibility
-    onShowSignup,
-    onShowGuestCheckout,
-    guestBookingInfo // Guest info from modal
+    onBook // backward compatibility
 }) {
     // Local state fallbacks if parent doesn't control these
     const [selectedPackageState, setSelectedPackageState] = useState(selectedPackageProp || null);
@@ -2520,104 +2217,9 @@ function BookingSidebar({
         );
     };
 
-    // Handle guest checkout continuation
-    async function handleGuestCheckoutContinue(guestInfo) {
-        if (!guestInfo || !guestInfo.email) {
-            alert('Please provide a valid email address');
-            return;
-        }
-
-        // Store guest info
-        setGuestBookingInfo(guestInfo);
-        setModalType(null);
-
-        // Validate booking requirements
-        if (!selectedPackage) {
-            alert('Please select a package');
-            return;
-        }
-
-        if (!selectedTime) {
-            alert('Please select a time');
-            return;
-        }
-
-        if (!selectedDate) {
-            alert('Please select a date');
-            return;
-        }
-
-        // Get the actual provider userId from the provider document
-        let actualProviderUserId = detailer.userId;
-        if (!actualProviderUserId) {
-            try {
-                const providerDocRef = doc(db, 'providers', detailer.id);
-                const providerDocSnap = await getDoc(providerDocRef);
-                if (providerDocSnap.exists()) {
-                    actualProviderUserId = providerDocSnap.data().userId;
-                }
-            } catch (err) {
-                console.warn('Could not fetch provider userId:', err);
-            }
-        }
-
-        if (!actualProviderUserId) {
-            console.error('ERROR: No provider userId found! Cannot create booking without providerUserId.');
-            alert('Error: Could not determine provider information. Please try again.');
-            return;
-        }
-
-        // Store booking data for guest and show payment modal
-        const bookingDataToStore = {
-            isGuest: true,
-            customerEmail: guestInfo.email,
-            customerName: guestInfo.name || '',
-            customerId: null, // No authenticated user
-            providerId: detailer.id,
-            providerUserId: actualProviderUserId,
-            providerName: detailer.name,
-            // Store package data
-            packageId: selectedPackage.id,
-            packageName: selectedPackage.name,
-            packagePrice: selectedPackage.price,
-            exteriorServices: selectedPackage.exteriorServices || [],
-            interiorServices: selectedPackage.interiorServices || [],
-            addOns: selectedAddOns.map(addOnId => {
-                const addOn = ADD_ONS.find(a => a.id === addOnId);
-                return addOn ? { id: addOn.id, name: addOn.name, price: addOn.price } : null;
-            }).filter(Boolean),
-            // Keep serviceName for backward compatibility
-            serviceName: selectedPackage.name,
-            // Store total price
-            price: totalPrice,
-            date: selectedDate,
-            time: selectedTime,
-            address: address,
-            vehicleType: answers.vehicleType,
-            preferredTimeSlot: answers.timeSlot,
-            status: 'pending',
-        };
-
-        setBookingData(bookingDataToStore);
-        setShowPayment(true);
-    }
-
     async function handleBookNow() {
         if (!currentUser) {
-            // If guest info exists, proceed with guest booking
-            if (guestBookingInfo && guestBookingInfo.email) {
-                // Guest checkout flow - proceed with booking
-                await handleGuestCheckoutContinue(guestBookingInfo);
-                return;
-            }
-            // Show guest checkout modal with options: Sign Up or Continue as Guest
-            if (onShowGuestCheckout) {
-                onShowGuestCheckout();
-            } else if (onShowSignup) {
-                onShowSignup();
-            } else {
-                alert('Please sign up or log in to book a service');
-            }
+            alert('Please log in to book a service');
             return;
         }
 
@@ -2712,12 +2314,9 @@ function BookingSidebar({
         setIsBookingState(true);
         try {
             // Create booking after payment succeeds
-            // Support guest bookings (no auth required)
-            const isGuestBooking = !currentUser || bookingData?.isGuest === true;
             const finalBookingData = {
                 ...bookingData,
                 ...(paymentResult.paymentIntent?.id && { paymentIntentId: paymentResult.paymentIntent.id }),
-                ...(isGuestBooking && { isGuest: true, customerEmail: bookingData.customerEmail }),
                 paymentStatus: 'paid',
                 createdAt: serverTimestamp(),
                 updatedAt: serverTimestamp()
@@ -2742,30 +2341,8 @@ function BookingSidebar({
             const serviceText = bookingData.packageName || bookingData.serviceName || 'service';
             alert(`Booking confirmed! Your ${serviceText} is scheduled for ${bookingData.date} at ${bookingData.time}.`);
 
-            // Send email receipt for guest bookings
-            if (isGuestBooking && bookingData.customerEmail) {
-                try {
-                    await fetch('/api/send-receipt', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: bookingData.customerEmail,
-                            bookingId: bookingId,
-                            bookingData: {
-                                ...finalBookingData,
-                                id: bookingId
-                            }
-                        })
-                    });
-                } catch (emailError) {
-                    console.warn('Failed to send email receipt:', emailError);
-                    // Don't fail the booking if email fails
-                }
-            }
-
             setShowPayment(false);
             setBookingData(null);
-            setGuestBookingInfo(null);
 
             // Optionally redirect or refresh
             window.location.href = '#';
@@ -3266,7 +2843,6 @@ function MarketplacePage({
     currentUser,
     onGoToDashboard,
     onLogout,
-    onLogin,
     showProfileDropdown,
     setShowProfileDropdown,
     address,
@@ -3305,7 +2881,7 @@ function MarketplacePage({
                     <div className="flex items-center justify-between">
                         <h1 className="text-2xl font-bold text-white drop-shadow-md">Brnno</h1>
 
-                        {currentUser ? (
+                        {currentUser && (
                             <div className="relative" ref={profileDropdownRef}>
                                 <button
                                     onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -3321,13 +2897,6 @@ function MarketplacePage({
                                     />
                                 )}
                             </div>
-                        ) : (
-                            <button
-                                onClick={onLogin}
-                                className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-all shadow-lg hover:shadow-xl"
-                            >
-                                Sign In
-                            </button>
                         )}
                     </div>
                 </div>
@@ -3534,7 +3103,7 @@ function ProfileDropdown({ currentUser, onGoToDashboard, onLogout }) {
 }
 
 // ==================== DETAILER PROFILE PAGE ====================
-function DetailerProfilePage({ detailer, answers, address, setAddress, setAnswers, currentUser, onBack, onBook, onShowSignup, onShowGuestCheckout, guestBookingInfo }) {
+function DetailerProfilePage({ detailer, answers, address, setAddress, setAnswers, currentUser, onBack, onBook }) {
     const [activeTab, setActiveTab] = useState('about');
 
     return (
@@ -3725,9 +3294,6 @@ function DetailerProfilePage({ detailer, answers, address, setAddress, setAnswer
                             setAnswers={setAnswers}
                             currentUser={currentUser}
                             onBook={onBook}
-                            onShowSignup={onShowSignup}
-                            onShowGuestCheckout={onShowGuestCheckout}
-                            guestBookingInfo={guestBookingInfo}
                         />
                     </div>
                 </div>
@@ -3893,15 +3459,6 @@ function CustomerDashboard({ currentUser, onBackToMarketplace, onLogout, showPro
                         }
                     }
 
-                    // Get full provider data for rescheduling
-                    let providerData = null;
-                    if (booking.providerUserId) {
-                        const providerDoc = await getDoc(doc(db, 'detailer', booking.providerUserId));
-                        if (providerDoc.exists()) {
-                            providerData = providerDoc.data();
-                        }
-                    }
-
                     return {
                         id: bookingDoc.id,
                         detailerName: providerName,
@@ -3910,14 +3467,10 @@ function CustomerDashboard({ currentUser, onBackToMarketplace, onLogout, showPro
                             : booking.serviceName || 'Service',
                         services: booking.services || (booking.serviceName ? [{ name: booking.serviceName, price: booking.price }] : []),
                         date: booking.date ? new Date(booking.date).toLocaleDateString() : 'TBD',
-                        dateRaw: booking.date || null, // Store raw date for rescheduling
                         time: booking.time || 'TBD',
                         price: booking.price || 0,
                         address: booking.address || 'N/A',
-                        status: booking.status,
-                        providerUserId: booking.providerUserId || null,
-                        providerId: booking.providerId || null,
-                        providerData: providerData // Full provider data for availability
+                        status: booking.status
                     };
                 })
             );
@@ -4137,108 +3690,6 @@ function CustomerDashboard({ currentUser, onBackToMarketplace, onLogout, showPro
 }
 
 function UpcomingAppointments({ appointments, onRefresh }) {
-    const [rescheduleAppointment, setRescheduleAppointment] = useState(null);
-    const [rescheduleDate, setRescheduleDate] = useState('');
-    const [rescheduleTime, setRescheduleTime] = useState('');
-    const [isRescheduling, setIsRescheduling] = useState(false);
-
-    // Calculate available times for reschedule date
-    const availableRescheduleTimes = useMemo(() => {
-        if (!rescheduleDate || !rescheduleAppointment?.providerData) {
-            return [];
-        }
-        const providerData = rescheduleAppointment.providerData;
-        if (providerData.defaultAvailability) {
-            return generateAvailableTimesForDate(
-                providerData.defaultAvailability,
-                providerData.dateOverrides || {},
-                rescheduleDate
-            );
-        }
-        return [];
-    }, [rescheduleDate, rescheduleAppointment]);
-
-    function handleOpenReschedule(apt) {
-        // Convert displayed date back to YYYY-MM-DD format
-        let dateValue = '';
-        if (apt.dateRaw) {
-            // If dateRaw is a Firestore timestamp
-            if (apt.dateRaw.seconds !== undefined) {
-                const date = new Date(apt.dateRaw.seconds * 1000);
-                dateValue = date.toISOString().split('T')[0];
-            } else if (apt.dateRaw.toDate && typeof apt.dateRaw.toDate === 'function') {
-                // Firestore Timestamp object
-                const date = apt.dateRaw.toDate();
-                dateValue = date.toISOString().split('T')[0];
-            } else if (apt.dateRaw instanceof Date) {
-                dateValue = apt.dateRaw.toISOString().split('T')[0];
-            } else if (typeof apt.dateRaw === 'string') {
-                // Already in YYYY-MM-DD format
-                dateValue = apt.dateRaw;
-            } else {
-                // Try to parse as date
-                const date = new Date(apt.dateRaw);
-                if (!isNaN(date.getTime())) {
-                    dateValue = date.toISOString().split('T')[0];
-                }
-            }
-        }
-        setRescheduleAppointment(apt);
-        setRescheduleDate(dateValue);
-        setRescheduleTime('');
-    }
-
-    async function handleReschedule() {
-        if (!rescheduleAppointment) return;
-
-        if (!rescheduleDate) {
-            alert('Please select a date');
-            return;
-        }
-
-        if (!rescheduleTime) {
-            alert('Please select a time');
-            return;
-        }
-
-        setIsRescheduling(true);
-        try {
-            // Store date as string (YYYY-MM-DD) to match how bookings are originally created
-            await updateDoc(doc(db, 'bookings', rescheduleAppointment.id), {
-                date: rescheduleDate,
-                time: rescheduleTime,
-                updatedAt: serverTimestamp(),
-                rescheduledAt: serverTimestamp()
-            });
-
-            // Notify provider if notification function exists
-            if (rescheduleAppointment.providerUserId) {
-                try {
-                    const bookingData = {
-                        id: rescheduleAppointment.id,
-                        date: rescheduleDate,
-                        time: rescheduleTime,
-                        customerName: rescheduleAppointment.detailerName
-                    };
-                    // You can add a notifyBookingRescheduled function if needed
-                } catch (notifError) {
-                    console.warn('Failed to notify provider:', notifError);
-                }
-            }
-
-            alert('Appointment rescheduled successfully!');
-            setRescheduleAppointment(null);
-            setRescheduleDate('');
-            setRescheduleTime('');
-            onRefresh();
-        } catch (error) {
-            console.error('Error rescheduling appointment:', error);
-            alert('Failed to reschedule appointment. Please try again.');
-        } finally {
-            setIsRescheduling(false);
-        }
-    }
-
     async function handleCancelBooking(appointmentId) {
         if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
@@ -4317,7 +3768,7 @@ function UpcomingAppointments({ appointments, onRefresh }) {
                             <div className="flex gap-3 pt-4 border-t border-gray-100">
                                 <button
                                     className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg font-semibold hover:bg-gray-50"
-                                    onClick={() => handleOpenReschedule(apt)}
+                                    onClick={() => alert('Reschedule feature coming soon!')}
                                 >
                                     Reschedule
                                 </button>
@@ -4330,99 +3781,6 @@ function UpcomingAppointments({ appointments, onRefresh }) {
                             </div>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* Reschedule Modal */}
-            {rescheduleAppointment && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-xl font-bold text-gray-900">Reschedule Appointment</h3>
-                            <button
-                                onClick={() => {
-                                    setRescheduleAppointment(null);
-                                    setRescheduleDate('');
-                                    setRescheduleTime('');
-                                }}
-                                className="text-gray-400 hover:text-gray-600"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                            <p className="text-sm text-gray-600 mb-1">Current Appointment</p>
-                            <p className="font-semibold text-gray-900">{rescheduleAppointment.detailerName}</p>
-                            <p className="text-sm text-gray-600">{rescheduleAppointment.service}</p>
-                            <p className="text-sm text-gray-600 mt-2">
-                                {rescheduleAppointment.date} at {rescheduleAppointment.time}
-                            </p>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block font-semibold text-gray-900 mb-2 text-sm">Select New Date</label>
-                                <input
-                                    type="date"
-                                    value={rescheduleDate}
-                                    onChange={(e) => {
-                                        setRescheduleDate(e.target.value);
-                                        setRescheduleTime(''); // Clear time when date changes
-                                    }}
-                                    min={new Date().toISOString().split('T')[0]}
-                                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-600 focus:outline-none text-sm"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block font-semibold text-gray-900 mb-2 text-sm">Select New Time</label>
-                                {availableRescheduleTimes.length === 0 ? (
-                                    <div className="p-3 bg-gray-100 border-2 border-gray-200 rounded-lg text-center">
-                                        <p className="text-gray-600 font-medium text-sm">
-                                            {rescheduleDate ? 'No availability on this day' : 'Please select a date first'}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto">
-                                        {availableRescheduleTimes.map((time) => (
-                                            <button
-                                                key={time}
-                                                onClick={() => setRescheduleTime(time)}
-                                                className={`px-3 py-2 border-2 rounded-lg font-medium transition-all text-sm ${rescheduleTime === time
-                                                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                                    : 'border-gray-200 text-gray-700 hover:border-blue-300'
-                                                    }`}
-                                            >
-                                                {time}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="flex gap-3 pt-4">
-                                <button
-                                    onClick={() => {
-                                        setRescheduleAppointment(null);
-                                        setRescheduleDate('');
-                                        setRescheduleTime('');
-                                    }}
-                                    className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg font-semibold hover:bg-gray-50"
-                                    disabled={isRescheduling}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleReschedule}
-                                    disabled={isRescheduling || !rescheduleDate || !rescheduleTime}
-                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
-                                >
-                                    {isRescheduling ? 'Rescheduling...' : 'Confirm Reschedule'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             )}
         </div>
