@@ -271,60 +271,81 @@ export default function ProviderDashboard({ currentUser, onBackToMarketplace, on
     useEffect(() => {
         if (currentUser) {
             loadProviderData();
-            initializeNotifications();
         }
     }, [currentUser]);
 
-    // Initialize notifications
-    async function initializeNotifications() {
+    // Initialize notifications with proper cleanup
+    useEffect(() => {
         if (!currentUser) return;
 
-        try {
-            const token = await requestNotificationPermission();
-            if (token) {
-                await saveFCMToken(currentUser.uid, token);
-            }
+        let unsubscribeNotifications = null;
+        let unsubscribeUnread = null;
+        let isMounted = true;
 
-            setupForegroundMessageHandler();
-
+        async function initializeNotifications() {
             try {
-                const unsubscribeNotifications = subscribeToNotifications(currentUser.uid, (notifs) => {
-                    try {
-                        setNotifications(Array.isArray(notifs) ? notifs : []);
-                    } catch (error) {
-                        console.error('Error setting notifications state:', error);
-                        setNotifications([]);
-                    }
-                });
+                const token = await requestNotificationPermission();
+                if (token && isMounted) {
+                    await saveFCMToken(currentUser.uid, token);
+                }
 
-                const unsubscribeUnread = subscribeToUnreadCount(currentUser.uid, (count) => {
-                    try {
-                        setUnreadCount(typeof count === 'number' ? count : 0);
-                    } catch (error) {
-                        console.error('Error setting unread count state:', error);
+                if (!isMounted) return;
+
+                setupForegroundMessageHandler();
+
+                try {
+                    unsubscribeNotifications = subscribeToNotifications(currentUser.uid, (notifs) => {
+                        if (!isMounted) return;
+                        try {
+                            setNotifications(Array.isArray(notifs) ? notifs : []);
+                        } catch (error) {
+                            console.error('Error setting notifications state:', error);
+                            setNotifications([]);
+                        }
+                    });
+
+                    unsubscribeUnread = subscribeToUnreadCount(currentUser.uid, (count) => {
+                        if (!isMounted) return;
+                        try {
+                            setUnreadCount(typeof count === 'number' ? count : 0);
+                        } catch (error) {
+                            console.error('Error setting unread count state:', error);
+                            setUnreadCount(0);
+                        }
+                    });
+                } catch (subscriptionError) {
+                    console.error('Error setting up notification subscriptions:', subscriptionError);
+                    if (isMounted) {
+                        setNotifications([]);
                         setUnreadCount(0);
                     }
-                });
-
-                return () => {
-                    try {
-                        if (typeof unsubscribeNotifications === 'function') unsubscribeNotifications();
-                        if (typeof unsubscribeUnread === 'function') unsubscribeUnread();
-                    } catch (error) {
-                        console.warn('Error unsubscribing from notifications:', error);
-                    }
-                };
-            } catch (subscriptionError) {
-                console.error('Error setting up notification subscriptions:', subscriptionError);
-                setNotifications([]);
-                setUnreadCount(0);
+                }
+            } catch (error) {
+                console.error('Error initializing notifications:', error);
+                if (isMounted) {
+                    setNotifications([]);
+                    setUnreadCount(0);
+                }
             }
-        } catch (error) {
-            console.error('Error initializing notifications:', error);
-            setNotifications([]);
-            setUnreadCount(0);
         }
-    }
+
+        initializeNotifications();
+
+        // Cleanup function - properly attached to useEffect
+        return () => {
+            isMounted = false;
+            try {
+                if (typeof unsubscribeNotifications === 'function') {
+                    unsubscribeNotifications();
+                }
+                if (typeof unsubscribeUnread === 'function') {
+                    unsubscribeUnread();
+                }
+            } catch (error) {
+                console.warn('Error unsubscribing from notifications:', error);
+            }
+        };
+    }, [currentUser]);
 
     useEffect(() => {
         if (userData?.role === 'admin') {
